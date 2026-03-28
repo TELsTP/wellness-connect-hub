@@ -1,36 +1,25 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import ChatInterface, { ChatMessage } from "@/components/shared/ChatInterface";
+import MultimediaChat, { ChatMessage } from "@/components/shared/MultimediaChat";
 import ConsentBanner from "@/components/shared/ConsentBanner";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import LanguageToggle from "@/components/shared/LanguageToggle";
+import ArchitectHandshake from "@/components/shared/ArchitectHandshake";
+import HayatPersona from "@/components/shared/HayatPersona";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   ArrowLeft, ArrowRight, Heart, Phone, FlaskConical, Pill,
-  MessageCircle, BookmarkPlus, Send
+  MessageCircle, Send
 } from "lucide-react";
 
-const WELLNESS_SYSTEM_PROMPT = `You are My-WellnessAI, a compassionate AI health companion built by TELsTP — a non-profit telemedicine initiative serving underserved communities in Egypt and the MENA region.
-
-CRITICAL RULES:
-1. You are NOT a doctor. NEVER diagnose. Always say "This is AI guidance only — not a medical diagnosis."
-2. For ANY severe symptoms (chest pain, difficulty breathing, severe bleeding, loss of consciousness, stroke signs), IMMEDIATELY say: "⚠️ EMERGENCY: Please call 123 (Egypt Emergency) or your local emergency number immediately. Do not wait."
-3. Be empathetic, clear, and use simple language anyone can understand.
-4. After symptom assessment, provide: possible conditions to discuss with a doctor, home remedies, when to seek professional care, and wellness tips.
-5. Support both English and Arabic responses based on user language.
-6. For lab results: explain each value in plain language, flag abnormals, suggest follow-ups.
-7. For medications: check known interactions, provide dosage guidance, mention natural alternatives.
-8. Always end with: "⚕️ Remember: This is guidance only. Please consult a healthcare professional for medical decisions."
-9. Reference standard medical protocols and WHO guidelines where appropriate.
-
-You serve humanity. Be thorough, caring, and always prioritize safety.`;
-
 const WellnessPortal = () => {
-  const { t, isRtl } = useLanguage();
+  const { t, isRtl, language } = useLanguage();
   const BackArrow = isRtl ? ArrowRight : ArrowLeft;
   const [consented, setConsented] = useState(() => localStorage.getItem("telstp-wellness-consent") === "true");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -42,43 +31,75 @@ const WellnessPortal = () => {
   const [medSearch, setMedSearch] = useState("");
   const [medMessages, setMedMessages] = useState<ChatMessage[]>([]);
   const [medLoading, setMedLoading] = useState(false);
+  const sessionId = useRef(`wellness-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   const handleConsent = () => {
     localStorage.setItem("telstp-wellness-consent", "true");
     setConsented(true);
   };
 
-  const sendMessage = useCallback(async (content: string, msgs: ChatMessage[], setMsgs: React.Dispatch<React.SetStateAction<ChatMessage[]>>, setLoading: React.Dispatch<React.SetStateAction<boolean>>, systemContext?: string) => {
-    const userMsg: ChatMessage = { role: "user", content };
+  const callEdgeFunction = useCallback(async (
+    content: string,
+    msgs: ChatMessage[],
+    setMsgs: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+    setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+    extraContext?: string
+  ) => {
+    const userMsg: ChatMessage = { role: "user", content: extraContext ? `${extraContext}\n\n${content}` : content };
     const updatedMsgs = [...msgs, userMsg];
     setMsgs(updatedMsgs);
     setLoading(true);
 
-    // For MVP, provide a meaningful local response since AI backend isn't connected yet
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke("wellness-ai-persona", {
+        body: {
+          messages: updatedMsgs.map(m => ({ role: m.role, content: m.content })),
+          sessionId: sessionId.current,
+          language,
+        },
+      });
+
+      if (error) throw error;
+
       const assistantMsg: ChatMessage = {
         role: "assistant",
-        content: generateWellnessResponse(content, systemContext),
+        content: data.content || "I'm sorry, please try again.",
       };
       setMsgs(prev => [...prev, assistantMsg]);
+    } catch (err) {
+      console.error("Wellness AI error:", err);
+      toast.error("AI service temporarily unavailable. Using offline guidance.");
+      // Fallback to local response
+      const assistantMsg: ChatMessage = {
+        role: "assistant",
+        content: getFallbackResponse(content),
+      };
+      setMsgs(prev => [...prev, assistantMsg]);
+    } finally {
       setLoading(false);
-    }, 1500);
-  }, []);
+    }
+  }, [language]);
 
   const handleChatSend = (msg: string) => {
-    const triageContext = triageLevel ? `Patient reports severity: ${triageLevel}. ` : "";
-    sendMessage(msg, messages, setMessages, setIsLoading, triageContext);
+    const triageContext = triageLevel ? `Patient reports severity: ${triageLevel}.` : "";
+    callEdgeFunction(msg, messages, setMessages, setIsLoading, triageContext || undefined);
   };
 
   const handleLabInterpret = () => {
     if (!labInput.trim()) return;
-    sendMessage(`Please interpret these lab results:\n\n${labInput}`, labMessages, setLabMessages, setLabLoading, "Lab interpretation mode.");
+    callEdgeFunction(
+      `Please interpret these lab results:\n\n${labInput}`,
+      labMessages, setLabMessages, setLabLoading
+    );
     setLabInput("");
   };
 
   const handleMedSearch = () => {
     if (!medSearch.trim()) return;
-    sendMessage(`Tell me about this medication: ${medSearch}. Include interactions, dosage, and natural alternatives.`, medMessages, setMedMessages, setMedLoading, "Medication info mode.");
+    callEdgeFunction(
+      `Tell me about this medication: ${medSearch}. Include interactions, dosage, and natural alternatives.`,
+      medMessages, setMedMessages, setMedLoading
+    );
     setMedSearch("");
   };
 
@@ -95,6 +116,8 @@ const WellnessPortal = () => {
 
   return (
     <div className="min-h-screen bg-gradient-wellness flex flex-col">
+      <ArchitectHandshake />
+
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
@@ -170,7 +193,7 @@ const WellnessPortal = () => {
           </TabsList>
 
           <TabsContent value="chat" className="flex-1 flex flex-col mt-0 data-[state=active]:flex">
-            <ChatInterface
+            <MultimediaChat
               messages={messages}
               onSend={handleChatSend}
               isLoading={isLoading}
@@ -231,122 +254,19 @@ const WellnessPortal = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <HayatPersona portalType="wellness" />
     </div>
   );
 };
 
-// Local response generator for MVP (will be replaced by AI edge function)
-function generateWellnessResponse(input: string, context?: string): string {
+function getFallbackResponse(input: string): string {
   const lower = input.toLowerCase();
-
-  // Emergency detection
   const emergencyKeywords = ["chest pain", "can't breathe", "difficulty breathing", "unconscious", "severe bleeding", "stroke", "heart attack", "ألم في الصدر", "لا أستطيع التنفس"];
   if (emergencyKeywords.some(k => lower.includes(k))) {
-    return `## ⚠️ EMERGENCY ALERT
-
-**This sounds like it could be a medical emergency.** Please:
-
-1. **Call 123** (Egypt Emergency) or your local emergency number **immediately**
-2. Do not wait — seek emergency medical care right now
-3. If someone is with you, ask them to help
-
----
-
-While waiting for help:
-- Stay calm and try to rest
-- Do not eat or drink anything
-- Keep the person lying down if unconscious
-- Note the time symptoms started
-
-⚕️ *This is AI guidance only — not a diagnosis. In emergencies, always call professional emergency services.*`;
+    return `## ⚠️ EMERGENCY ALERT\n\n**This sounds like it could be a medical emergency.** Please:\n\n1. **Call 123** (Egypt Emergency) immediately\n2. Do not wait — seek emergency medical care right now\n\n⚕️ *This is AI guidance only — not a diagnosis.*`;
   }
-
-  // Headache/fever
-  if (lower.includes("headache") || lower.includes("fever") || lower.includes("صداع") || lower.includes("حمى")) {
-    return `## Headache & Fever Assessment
-
-Based on your symptoms, here are some **possibilities to discuss with your doctor**:
-
-### Possible Conditions
-- **Common cold or flu** — Most likely if accompanied by runny nose, body aches
-- **Tension headache** — Often stress-related, usually responds to rest
-- **Sinusitis** — If accompanied by facial pressure and nasal congestion
-- **Viral infection** — Common cause of combined headache and fever
-
-### Home Remedies 🏠
-- **Rest** in a quiet, dark room
-- **Stay hydrated** — drink plenty of water, herbal teas, and clear broths
-- **Cool compress** on forehead may help
-- **Paracetamol** (as directed on packaging) for fever and pain relief
-- **Ginger tea** with honey can be soothing
-
-### When to Seek Professional Care 🏥
-- Fever above **39°C (102°F)** lasting more than 3 days
-- **Severe headache** that is the worst you've ever had
-- **Stiff neck** with fever (could indicate meningitis)
-- **Vision changes** or confusion
-- Symptoms **worsening** despite home treatment
-
-### Wellness Tips 💚
-- Get 7-8 hours of sleep
-- Wash hands frequently
-- Maintain a balanced diet rich in vitamin C
-
-⚕️ *Remember: This is guidance only. Please consult a healthcare professional for medical decisions.*`;
-  }
-
-  // Lab results
-  if (lower.includes("lab") || lower.includes("blood test") || lower.includes("تحليل")) {
-    return `## Lab Result Interpretation
-
-I'd be happy to help interpret your lab results! To provide the most accurate guidance, please share the specific values from your report.
-
-### Common Blood Test Values I Can Explain:
-- **CBC** (Complete Blood Count) — Red cells, white cells, platelets
-- **Blood Sugar** (Glucose, HbA1c) — Diabetes screening
-- **Lipid Panel** — Cholesterol, triglycerides
-- **Liver Function** — ALT, AST, Bilirubin
-- **Kidney Function** — Creatinine, BUN, eGFR
-- **Thyroid** — TSH, T3, T4
-
-### How to Share Results
-Simply type or paste the test name and its value, for example:
-- "Hemoglobin: 12.5 g/dL"
-- "Glucose fasting: 110 mg/dL"
-
-I'll explain each value in plain language and flag any that need attention.
-
-⚕️ *Remember: This is guidance only. Please consult a healthcare professional for medical decisions.*`;
-  }
-
-  // Default
-  return `## Health Guidance
-
-Thank you for reaching out. I'm here to help you understand your health concern.
-
-Based on what you've shared, here's my guidance:
-
-### General Recommendations
-1. **Monitor your symptoms** — Note when they started, how severe they are, and if anything makes them better or worse
-2. **Stay hydrated** and maintain a balanced diet
-3. **Rest** if you're feeling unwell
-4. **Keep a symptom diary** to share with a healthcare provider
-
-### When to Seek Professional Care
-- If symptoms persist for more than **3-5 days**
-- If symptoms are **getting worse** instead of better
-- If you experience any **severe or unusual symptoms**
-- If you have **underlying health conditions**
-
-### Need Emergency Help?
-🚨 Call **123** (Egypt Emergency) for any life-threatening situation.
-
-Would you like me to:
-- Assess specific symptoms in more detail?
-- Explain any lab results?
-- Check medication information?
-
-⚕️ *Remember: This is guidance only — not a medical diagnosis. Please consult a healthcare professional for medical decisions.*`;
+  return `## Health Guidance\n\nThank you for reaching out. I'm currently operating in offline mode. For the best experience, please try again in a moment.\n\n### General Recommendations\n1. **Monitor your symptoms** carefully\n2. **Stay hydrated** and rest\n3. If symptoms persist or worsen, **seek professional care**\n\n🚨 For emergencies, call **123** (Egypt Emergency)\n\n⚕️ *This is guidance only. Please consult a healthcare professional.*\n🏅 TELsTP Co-Accreditation: Level 1 — Wellness Domain`;
 }
 
 export default WellnessPortal;

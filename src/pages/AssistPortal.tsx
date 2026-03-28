@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,17 +6,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import ChatInterface, { ChatMessage } from "@/components/shared/ChatInterface";
+import MultimediaChat, { ChatMessage } from "@/components/shared/MultimediaChat";
 import ConsentBanner from "@/components/shared/ConsentBanner";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import LanguageToggle from "@/components/shared/LanguageToggle";
+import ArchitectHandshake from "@/components/shared/ArchitectHandshake";
+import HayatPersona from "@/components/shared/HayatPersona";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   ArrowLeft, ArrowRight, Stethoscope, MessageCircle,
   BookOpen, Pill, FileText, Send, Award
 } from "lucide-react";
 
 const AssistPortal = () => {
-  const { t, isRtl } = useLanguage();
+  const { t, isRtl, language } = useLanguage();
   const BackArrow = isRtl ? ArrowRight : ArrowLeft;
   const [consented, setConsented] = useState(() => localStorage.getItem("telstp-assist-consent") === "true");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -31,47 +35,73 @@ const AssistPortal = () => {
   const [summaryMessages, setSummaryMessages] = useState<ChatMessage[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [mohGuidelines, setMohGuidelines] = useState(true);
-  const [darkTheme, setDarkTheme] = useState(false);
+  const sessionId = useRef(`assist-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   const handleConsent = () => {
     localStorage.setItem("telstp-assist-consent", "true");
     setConsented(true);
   };
 
-  const sendMessage = useCallback((content: string, msgs: ChatMessage[], setMsgs: React.Dispatch<React.SetStateAction<ChatMessage[]>>, setLoading: React.Dispatch<React.SetStateAction<boolean>>, systemContext?: string) => {
+  const callEdgeFunction = useCallback(async (
+    content: string,
+    msgs: ChatMessage[],
+    setMsgs: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+    setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  ) => {
     const userMsg: ChatMessage = { role: "user", content };
-    setMsgs(prev => [...prev, userMsg]);
+    const updatedMsgs = [...msgs, userMsg];
+    setMsgs(updatedMsgs);
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke("assist-ai-persona", {
+        body: {
+          messages: updatedMsgs.map(m => ({ role: m.role, content: m.content })),
+          sessionId: sessionId.current,
+          language,
+          mohGuidelines,
+        },
+      });
+
+      if (error) throw error;
+
       const assistantMsg: ChatMessage = {
         role: "assistant",
-        content: generateClinicalResponse(content, systemContext, mohGuidelines),
+        content: data.content || "Unable to generate clinical response. Please try again.",
       };
       setMsgs(prev => [...prev, assistantMsg]);
+    } catch (err) {
+      console.error("Assist AI error:", err);
+      toast.error("AI service temporarily unavailable. Using offline mode.");
+      const assistantMsg: ChatMessage = {
+        role: "assistant",
+        content: `## Clinical Decision Support\n\n⚠️ AI service is temporarily offline. Please try again shortly.\n\nFor urgent clinical decisions, consult your institution's protocols directly.\n\n---\n*⚕️ Clinical decision support — not a substitute for clinical judgment.*\n*🏅 TELsTP Co-Accreditation: Offline Mode*`,
+      };
+      setMsgs(prev => [...prev, assistantMsg]);
+    } finally {
       setLoading(false);
-    }, 1800);
-  }, [mohGuidelines]);
+    }
+  }, [language, mohGuidelines]);
 
   const handleChatSend = (msg: string) => {
-    sendMessage(msg, messages, setMessages, setIsLoading, "Clinical decision support mode.");
+    callEdgeFunction(msg, messages, setMessages, setIsLoading);
   };
 
   const handleLitSearch = () => {
     if (!litSearch.trim()) return;
-    sendMessage(`Search medical literature: ${litSearch}`, litMessages, setLitMessages, setLitLoading, "Literature search mode.");
+    callEdgeFunction(`Search medical literature: ${litSearch}`, litMessages, setLitMessages, setLitLoading);
     setLitSearch("");
   };
 
   const handleDrugSearch = () => {
     if (!drugSearch.trim()) return;
-    sendMessage(`Drug reference query: ${drugSearch}. Include pharmacology, interactions, contraindications, and dosing.`, drugMessages, setDrugMessages, setDrugLoading, "Drug reference mode.");
+    callEdgeFunction(`Drug reference query: ${drugSearch}. Include pharmacology, interactions, contraindications, and dosing.`, drugMessages, setDrugMessages, setDrugLoading);
     setDrugSearch("");
   };
 
   const handleSummary = () => {
     if (!patientData.trim()) return;
-    sendMessage(`Generate a structured clinical summary from this patient data:\n\n${patientData}`, summaryMessages, setSummaryMessages, setSummaryLoading, "Patient summary generator mode.");
+    callEdgeFunction(`Generate a structured clinical summary from this patient data:\n\n${patientData}`, summaryMessages, setSummaryMessages, setSummaryLoading);
     setPatientData("");
   };
 
@@ -87,7 +117,9 @@ const AssistPortal = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-clinical flex flex-col ${darkTheme ? "dark" : ""}`}>
+    <div className="min-h-screen bg-gradient-clinical flex flex-col">
+      <ArchitectHandshake />
+
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
@@ -141,7 +173,7 @@ const AssistPortal = () => {
           </TabsList>
 
           <TabsContent value="chat" className="flex-1 flex flex-col mt-0 data-[state=active]:flex">
-            <ChatInterface
+            <MultimediaChat
               messages={messages}
               onSend={handleChatSend}
               isLoading={isLoading}
@@ -230,156 +262,10 @@ const AssistPortal = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <HayatPersona portalType="clinical" />
     </div>
   );
 };
-
-function generateClinicalResponse(input: string, context?: string, mohGuidelines?: boolean): string {
-  const lower = input.toLowerCase();
-
-  if (lower.includes("chest pain") || lower.includes("ألم في الصدر") || lower.includes("dyspnea")) {
-    return `## Clinical Decision Support — Chest Pain with Dyspnea
-
-**🔬 Co-Accreditation: Level 3 — Clinical Reasoning Domain | Confidence: 87%**
-
-### Differential Diagnosis (Ranked by Probability)
-
-| # | Condition | Probability | Key Discriminators |
-|---|-----------|-------------|-------------------|
-| 1 | **Acute Coronary Syndrome** | High | ECG changes, troponin elevation, risk factors |
-| 2 | **Pulmonary Embolism** | Moderate-High | D-dimer, Wells score, CT-PA |
-| 3 | **Pneumonia** | Moderate | Fever, productive cough, consolidation |
-| 4 | **Pneumothorax** | Low-Moderate | Sudden onset, decreased breath sounds |
-| 5 | **Musculoskeletal** | Low | Reproducible on palpation, positional |
-
-### Recommended Workup
-1. **Immediate**: 12-lead ECG, Troponin (serial q3h), CXR, SpO2
-2. **Labs**: CBC, BMP, BNP/NT-proBNP, D-dimer (if PE suspected)
-3. **Imaging**: CT-PA if Wells >4, Echo if hemodynamically unstable
-4. **Risk Scores**: HEART Score, Wells Score for PE
-
-### Treatment Protocol (per AHA/ESC Guidelines)
-- **ACS Protocol**: Aspirin 325mg, Heparin, Morphine PRN, Nitro if SBP>90
-- **PE Protocol**: LMWH, consider thrombolytics if massive PE
-- **Supportive**: O2 to maintain SpO2 >94%, IV access, continuous monitoring
-
-${mohGuidelines ? `### 🇪🇬 Egyptian MOH Guidelines Note
-Per Egyptian Ministry of Health Protocol (2024): Initial assessment should follow the National ACS pathway. Transfer to PCI-capable facility within 120 minutes if STEMI confirmed.` : ""}
-
----
-*⚕️ This is AI-generated clinical decision support — not a substitute for clinical judgment. The treating physician retains full responsibility for patient care.*
-*🏅 TELsTP Co-Accreditation ID: CDS-2025-${Math.random().toString(36).slice(2, 8).toUpperCase()}*`;
-  }
-
-  if (lower.includes("diabetes") || lower.includes("dm") || lower.includes("سكري")) {
-    return `## Clinical Decision Support — Type 2 Diabetes Mellitus
-
-**🔬 Co-Accreditation: Level 2 — Treatment Protocols Domain | Confidence: 92%**
-
-### Latest Treatment Protocols (ADA Standards 2025)
-
-#### First-Line Therapy
-- **Metformin** remains first-line unless contraindicated (eGFR <30)
-- Starting dose: 500mg BID with meals, titrate to max 2000mg/day
-- HbA1c target: <7% for most adults, individualize for elderly/comorbid
-
-#### Second-Line Agents (Based on Comorbidities)
-| Comorbidity | Preferred Agent | Evidence Level |
-|------------|----------------|----------------|
-| **ASCVD** | GLP-1 RA (Semaglutide, Liraglutide) | Grade A |
-| **Heart Failure** | SGLT2i (Empagliflozin, Dapagliflozin) | Grade A |
-| **CKD** | SGLT2i or Finerenone | Grade A |
-| **Obesity** | GLP-1 RA or Tirzepatide | Grade A |
-| **Cost concern** | Sulfonylurea or TZD | Grade B |
-
-#### Monitoring Schedule
-- HbA1c every **3 months** until stable, then every **6 months**
-- Annual: Lipid panel, renal function, urine albumin, eye exam, foot exam
-- Blood pressure target: <130/80 mmHg
-
-${mohGuidelines ? `### 🇪🇬 Egyptian MOH Guidelines
-Egypt National Diabetes Program recommends screening all adults >45 years. Community health workers in rural areas should perform annual HbA1c screening per MOH Protocol 2024.` : ""}
-
----
-*⚕️ Clinical decision support — not a substitute for clinical judgment.*
-*🏅 TELsTP Co-Accreditation ID: CDS-2025-${Math.random().toString(36).slice(2, 8).toUpperCase()}*`;
-  }
-
-  if (lower.includes("drug") || lower.includes("interaction") || lower.includes("metformin") || lower.includes("تفاعل")) {
-    return `## Drug Reference — Metformin + Lisinopril Interaction Analysis
-
-**🔬 Co-Accreditation: Level 2 — Pharmacology Domain | Confidence: 95%**
-
-### Interaction Summary
-| Parameter | Assessment |
-|-----------|-----------|
-| **Severity** | Low — Generally safe combination |
-| **Evidence** | Well-established in clinical practice |
-| **Mechanism** | No direct pharmacokinetic interaction |
-| **Clinical Significance** | Monitor renal function (both renally cleared) |
-
-### Metformin (Biguanide)
-- **MOA**: Decreases hepatic glucose production, increases insulin sensitivity
-- **Dose**: 500-2000mg/day in divided doses
-- **Key Monitoring**: Renal function (hold if eGFR <30), B12 levels annually
-- **Contraindications**: Severe renal impairment, metabolic acidosis, contrast dye procedures
-
-### Lisinopril (ACE Inhibitor)
-- **MOA**: Inhibits angiotensin-converting enzyme, reduces afterload
-- **Dose**: 5-40mg/day
-- **Key Monitoring**: K+, creatinine, BP
-- **Contraindications**: Pregnancy, bilateral renal artery stenosis, angioedema history
-
-### Clinical Recommendations
-1. **Safe to combine** — commonly prescribed together in diabetic patients
-2. **Renal monitoring**: Creatinine and eGFR at baseline, then every 3-6 months
-3. **Potassium**: Monitor K+ especially if adding other agents
-4. **Benefit**: Lisinopril provides renal protection in diabetic nephropathy (GRADE A evidence)
-
----
-*⚕️ Clinical decision support — always verify with current formulary.*
-*🏅 TELsTP Co-Accreditation ID: PHARM-2025-${Math.random().toString(36).slice(2, 8).toUpperCase()}*`;
-  }
-
-  // Default clinical response
-  return `## Clinical Decision Support
-
-**🔬 Co-Accreditation: Level 2 — General Clinical Domain**
-
-Thank you for your clinical query. Here's my analysis:
-
-### Assessment Framework
-Based on your question, I recommend the following systematic approach:
-
-1. **History**: Comprehensive patient history including:
-   - Chief complaint and HPI (onset, duration, severity, associated symptoms)
-   - Past medical/surgical history
-   - Medications and allergies
-   - Family and social history
-
-2. **Physical Examination**: Focused exam based on presenting complaint
-
-3. **Investigations**: Guided by clinical suspicion
-   - Basic labs: CBC, BMP, LFTs
-   - Specific tests based on differential
-
-4. **Differential Diagnosis**: Systematic approach using clinical reasoning
-
-### Available Support
-I can help you with:
-- **Differential diagnosis** for specific presentations
-- **Treatment protocols** per latest guidelines (AHA, ESC, ADA, WHO)
-- **Drug interactions** and dosing guidance
-- **Literature search** for evidence-based recommendations
-- **Patient summaries** in structured clinical format
-
-${mohGuidelines ? "🇪🇬 Egyptian MOH guidelines integration is **enabled** for this session." : ""}
-
-Please provide more specific clinical details for a targeted analysis.
-
----
-*⚕️ Clinical decision support — not a substitute for clinical judgment.*
-*🏅 TELsTP Co-Accreditation ID: CDS-2025-${Math.random().toString(36).slice(2, 8).toUpperCase()}*`;
-}
 
 export default AssistPortal;
