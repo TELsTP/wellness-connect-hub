@@ -27,6 +27,7 @@ interface Props {
   suggestions?: string[];
   onNewChat?: () => void;
   accentColor?: "wellness" | "clinical";
+  sessionId?: string;
 }
 
 const MultimediaChat = ({
