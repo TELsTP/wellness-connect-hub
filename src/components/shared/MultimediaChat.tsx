@@ -8,8 +8,10 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import MedicalDisclaimer from "./MedicalDisclaimer";
+import CertificateGenerator from "./CertificateGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Award } from "lucide-react";
 
 export interface ChatMessage {
   role: "user" | "assistant";
