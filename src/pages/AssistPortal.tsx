@@ -181,6 +181,7 @@ const AssistPortal = () => {
               suggestions={suggestions}
               onNewChat={() => setMessages([])}
               accentColor="clinical"
+              sessionId={sessionId.current}
             />
           </TabsContent>
 
