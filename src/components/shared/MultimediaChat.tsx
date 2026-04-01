@@ -188,7 +188,7 @@ const MultimediaChat = ({
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
             <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
               msg.role === "user"
                 ? `${accentStyles.userBg} rounded-br-md`
@@ -215,6 +215,27 @@ const MultimediaChat = ({
                 <p>{msg.content}</p>
               )}
             </div>
+            {msg.role === "assistant" && accentColor === "clinical" && (
+              <>
+                {certOpenIndex === i ? (
+                  <div className="max-w-[85%] w-full">
+                    <CertificateGenerator
+                      messageContent={msg.content}
+                      sessionId={sessionId}
+                      onClose={() => setCertOpenIndex(null)}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setCertOpenIndex(i)}
+                    className="mt-1 flex items-center gap-1.5 text-xs text-clinical hover:text-clinical/80 transition-colors px-2 py-1 rounded-lg hover:bg-clinical/5"
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    Generate Co-Accreditation Certificate
+                  </button>
+                )}
+              </>
+            )}
           </div>
         ))}
 
