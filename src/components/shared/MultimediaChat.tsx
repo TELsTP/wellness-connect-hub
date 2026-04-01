@@ -32,10 +32,11 @@ interface Props {
 
 const MultimediaChat = ({
   messages, onSend, isLoading, placeholder,
-  suggestions = [], onNewChat, accentColor = "wellness"
+  suggestions = [], onNewChat, accentColor = "wellness", sessionId = ""
 }: Props) => {
   const [input, setInput] = useState("");
   const { t } = useLanguage();
+  const [certOpenIndex, setCertOpenIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRecording, setIsRecording] = useState(false);
