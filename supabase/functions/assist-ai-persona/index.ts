@@ -70,16 +70,14 @@ Deno.serve(async (req: Request) => {
       })),
     ];
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://telstp.org",
-        "X-Title": "TELsTP AssistAI",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
+        model: "google/gemini-3-flash-preview",
         messages: aiMessages,
         max_tokens: 3000,
         temperature: 0.5,
