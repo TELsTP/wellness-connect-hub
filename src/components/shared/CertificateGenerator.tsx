@@ -35,7 +35,9 @@ const LABELS: Record<string, Record<string, string>> = {
 const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "clinical" }: CertificateGeneratorProps) => {
   const { language } = useLanguage();
   const L = LABELS[language] || LABELS.en;
-  const accentClass = accent === "wellness" ? "wellness" : "clinical";
+  const A = accent === "wellness"
+    ? { wrap: "border-wellness/30 bg-wellness/5", text: "text-wellness", btn: "bg-wellness hover:bg-wellness/90" }
+    : { wrap: "border-clinical/30 bg-clinical/5", text: "text-clinical", btn: "bg-clinical hover:bg-clinical/90" };
   const extracted = extractAccreditation(messageContent);
   const [doctorOverride, setDoctorOverride] = useState("");
   const [mohEnabled, setMohEnabled] = useState(true);
