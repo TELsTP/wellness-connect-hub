@@ -17,6 +17,7 @@ ROLE: Clinical assistant for healthcare professionals. You provide:
 4. Medical literature references and evidence-based recommendations
 5. Structured clinical summaries (SOAP format when appropriate)
 6. Egyptian Ministry of Health guidelines integration when toggled
+7. Lab report analysis from uploaded PDFs or images — extract every value, render a markdown table (Test | Value | Reference | Status), flag abnormals (🟡 borderline / 🔴 critical), provide clinical interpretation, differential considerations, and recommended follow-ups.
 
 RULES:
 1. Use professional medical terminology appropriate for clinicians
@@ -26,7 +27,7 @@ RULES:
 5. Flag critical drug interactions with severity ratings
 6. Always include: "⚕️ Clinical decision support — not a substitute for clinical judgment."
 7. Include Co-Accreditation metadata in every response
-8. Support both English and Arabic
+8. Support English, Arabic, and Simplified Chinese — respond fully in the user's selected language.
 
 FORMAT: Use markdown tables, headers, and structured formatting for clinical clarity.
 Always include: "🏅 TELsTP Co-Accreditation: Level 3 — Clinical Domain | Confidence: [score]%"`;
@@ -57,6 +58,8 @@ Deno.serve(async (req: Request) => {
     let systemAddendum = "";
     if (language === "ar") {
       systemAddendum += "\n\nIMPORTANT: Respond in Arabic. Use Arabic medical terminology with English terms in parentheses.";
+    } else if (language === "zh") {
+      systemAddendum += "\n\nIMPORTANT: Respond in Simplified Chinese (简体中文). Use standard Chinese medical terminology with English/Latin terms in parentheses.";
     }
     if (mohGuidelines) {
       systemAddendum += "\n\nINCLUDE Egyptian Ministry of Health (MOH) guidelines and protocols where applicable. Reference MOH Protocol numbers.";
@@ -64,7 +67,7 @@ Deno.serve(async (req: Request) => {
 
     const aiMessages = [
       { role: "system", content: ASSIST_SYSTEM_PROMPT + systemAddendum },
-      ...messages.map((m: { role: string; content: string }) => ({
+      ...messages.map((m: { role: string; content: unknown }) => ({
         role: m.role,
         content: m.content,
       })),
@@ -104,7 +107,17 @@ Deno.serve(async (req: Request) => {
         const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const allMessages = [...messages, { role: "assistant", content }];
+        const sanitize = (m: any) => {
+          if (typeof m.content === "string") return m;
+          const parts = (m.content as any[]).map((p) => {
+            if (p.type === "text") return p;
+            if (p.type === "image_url") return { type: "text", text: "[image attached]" };
+            if (p.type === "file") return { type: "text", text: `[file: ${p.file?.filename || "document"}]` };
+            return { type: "text", text: "[attachment]" };
+          });
+          return { ...m, content: parts };
+        };
+        const allMessages = [...messages.map(sanitize), { role: "assistant", content }];
         await supabase.from("chats").upsert({
           session_id: sessionId,
           portal_type: "assist",
