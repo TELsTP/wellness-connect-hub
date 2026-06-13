@@ -196,11 +196,11 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "cl
   };
 
   return (
-    <div className="mt-3 p-4 rounded-xl border border-clinical/30 bg-clinical/5 space-y-3">
+    <div className={`mt-3 p-4 rounded-xl border border-${accentClass}/30 bg-${accentClass}/5 space-y-3`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-clinical">
+        <div className={`flex items-center gap-2 text-sm font-semibold text-${accentClass}`}>
           <Award className="w-4 h-4" />
-          Co-Accreditation Certificate
+          {L.title}
         </div>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <X className="w-4 h-4" />
@@ -209,38 +209,38 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "cl
 
       <div className="grid grid-cols-3 gap-3 text-xs">
         <div className="bg-card border rounded-lg p-2">
-          <span className="text-muted-foreground block">Level</span>
-          <span className="font-bold text-clinical">{extracted.level}</span>
+          <span className="text-muted-foreground block">{L.level}</span>
+          <span className={`font-bold text-${accentClass}`}>{extracted.level}</span>
         </div>
         <div className="bg-card border rounded-lg p-2">
-          <span className="text-muted-foreground block">Domain</span>
+          <span className="text-muted-foreground block">{L.domain}</span>
           <span className="font-bold">{extracted.domain}</span>
         </div>
         <div className="bg-card border rounded-lg p-2">
-          <span className="text-muted-foreground block">Confidence</span>
-          <span className="font-bold text-clinical">{extracted.confidence}%</span>
+          <span className="text-muted-foreground block">{L.confidence}</span>
+          <span className={`font-bold text-${accentClass}`}>{extracted.confidence}%</span>
         </div>
       </div>
 
       <div className="flex items-center gap-2 text-xs">
-        <span className="text-muted-foreground">MOH Guidelines</span>
+        <span className="text-muted-foreground">{L.moh}</span>
         <Switch checked={mohEnabled} onCheckedChange={setMohEnabled} />
       </div>
 
       <Input
         value={doctorOverride}
         onChange={(e) => setDoctorOverride(e.target.value)}
-        placeholder="Doctor name / override note (optional)"
+        placeholder={L.doctor}
         className="text-sm"
       />
 
       <Button
         onClick={generatePDF}
         disabled={generating}
-        className="w-full bg-clinical hover:bg-clinical/90 text-white gap-2"
+        className={`w-full bg-${accentClass} hover:bg-${accentClass}/90 text-white gap-2`}
       >
         <Download className="w-4 h-4" />
-        {generating ? "Generating..." : "Download Certificate PDF"}
+        {generating ? L.generating : L.download}
       </Button>
     </div>
   );
