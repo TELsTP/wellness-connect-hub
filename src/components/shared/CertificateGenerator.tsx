@@ -198,9 +198,9 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "cl
   };
 
   return (
-    <div className={`mt-3 p-4 rounded-xl border border-${accentClass}/30 bg-${accentClass}/5 space-y-3`}>
+    <div className={`mt-3 p-4 rounded-xl border ${A.wrap} space-y-3`}>
       <div className="flex items-center justify-between">
-        <div className={`flex items-center gap-2 text-sm font-semibold text-${accentClass}`}>
+        <div className={`flex items-center gap-2 text-sm font-semibold ${A.text}`}>
           <Award className="w-4 h-4" />
           {L.title}
         </div>
@@ -212,7 +212,7 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "cl
       <div className="grid grid-cols-3 gap-3 text-xs">
         <div className="bg-card border rounded-lg p-2">
           <span className="text-muted-foreground block">{L.level}</span>
-          <span className={`font-bold text-${accentClass}`}>{extracted.level}</span>
+          <span className={`font-bold ${A.text}`}>{extracted.level}</span>
         </div>
         <div className="bg-card border rounded-lg p-2">
           <span className="text-muted-foreground block">{L.domain}</span>
@@ -220,7 +220,7 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "cl
         </div>
         <div className="bg-card border rounded-lg p-2">
           <span className="text-muted-foreground block">{L.confidence}</span>
-          <span className={`font-bold text-${accentClass}`}>{extracted.confidence}%</span>
+          <span className={`font-bold ${A.text}`}>{extracted.confidence}%</span>
         </div>
       </div>
 
@@ -239,7 +239,7 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "cl
       <Button
         onClick={generatePDF}
         disabled={generating}
-        className={`w-full bg-${accentClass} hover:bg-${accentClass}/90 text-white gap-2`}
+        className={`w-full ${A.btn} text-white gap-2`}
       >
         <Download className="w-4 h-4" />
         {generating ? L.generating : L.download}
