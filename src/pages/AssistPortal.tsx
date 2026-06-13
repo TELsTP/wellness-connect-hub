@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import MultimediaChat, { ChatMessage } from "@/components/shared/MultimediaChat";
+import { filesToContentParts } from "@/lib/multimedia";
 import ConsentBanner from "@/components/shared/ConsentBanner";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import LanguageToggle from "@/components/shared/LanguageToggle";
@@ -47,16 +48,32 @@ const AssistPortal = () => {
     msgs: ChatMessage[],
     setMsgs: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
     setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+    files?: File[]
   ) => {
-    const userMsg: ChatMessage = { role: "user", content };
+    const parts = files && files.length > 0 ? await filesToContentParts(files) : [];
+    const previewMedia = parts
+      .filter((p) => p.type !== "text")
+      .map((p: any) =>
+        p.type === "image_url"
+          ? { type: "image", url: p.image_url.url }
+          : { type: "file", url: "", name: p.file?.filename || "document" }
+      );
+    const userMsg: ChatMessage = { role: "user", content, media: previewMedia };
     const updatedMsgs = [...msgs, userMsg];
     setMsgs(updatedMsgs);
     setLoading(true);
 
+    const apiMessages = updatedMsgs.map((m, i) => {
+      if (i === updatedMsgs.length - 1 && parts.length > 0) {
+        return { role: m.role, content: [{ type: "text", text: content || "Please analyze the attached lab report." }, ...parts] };
+      }
+      return { role: m.role, content: m.content };
+    });
+
     try {
       const { data, error } = await supabase.functions.invoke("assist-ai-persona", {
         body: {
-          messages: updatedMsgs.map(m => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
           sessionId: sessionId.current,
           language,
           mohGuidelines,
@@ -83,8 +100,8 @@ const AssistPortal = () => {
     }
   }, [language, mohGuidelines]);
 
-  const handleChatSend = (msg: string) => {
-    callEdgeFunction(msg, messages, setMessages, setIsLoading);
+  const handleChatSend = (msg: string, media?: File[]) => {
+    callEdgeFunction(msg || "Please analyze the attached lab report.", messages, setMessages, setIsLoading, media);
   };
 
   const handleLitSearch = () => {
