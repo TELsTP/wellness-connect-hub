@@ -96,7 +96,17 @@ Deno.serve(async (req: Request) => {
         const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const allMessages = [...messages, { role: "assistant", content }];
+        const sanitize = (m: any) => {
+          if (typeof m.content === "string") return m;
+          const parts = (m.content as any[]).map((p) => {
+            if (p.type === "text") return p;
+            if (p.type === "image_url") return { type: "text", text: "[image attached]" };
+            if (p.type === "file") return { type: "text", text: `[file: ${p.file?.filename || "document"}]` };
+            return { type: "text", text: "[attachment]" };
+          });
+          return { ...m, content: parts };
+        };
+        const allMessages = [...messages.map(sanitize), { role: "assistant", content }];
         await supabase.from("chats").upsert({
           session_id: sessionId,
           portal_type: "wellness",
