@@ -12,6 +12,7 @@ interface CertificateGeneratorProps {
   messageContent: string;
   sessionId: string;
   onClose: () => void;
+  accent?: "clinical" | "wellness";
 }
 
 const extractAccreditation = (content: string) => {
@@ -25,8 +26,16 @@ const extractAccreditation = (content: string) => {
   };
 }
 
-const CertificateGenerator = ({ messageContent, sessionId, onClose }: CertificateGeneratorProps) => {
-  const { t } = useLanguage();
+const LABELS: Record<string, Record<string, string>> = {
+  en: { title: "Co-Accreditation Certificate", level: "Level", domain: "Domain", confidence: "Confidence", moh: "MOH Guidelines", doctor: "Doctor name / override (optional)", download: "Download Certificate PDF", generating: "Generating...", success: "Certificate generated!", header: "Co-Accreditation Certificate", subheader: "AI-Human Collaborative Clinical Decision Support", id: "CERTIFICATE ID", accLevel: "ACCREDITATION LEVEL", dom: "DOMAIN", conf: "AI CONFIDENCE SCORE", mohLabel: "EGYPTIAN MOH GUIDELINES", val: "DOCTOR VALIDATION", sess: "SESSION ID", issued: "ISSUED", included: "Included", notIncluded: "Not Included", pending: "Pending Doctor Review", footer1: "This certificate validates AI-human co-accredited decision support. Not a medical license or diagnosis.", footer2: "HIPAA-compliant • Egyptian Data Protection Law 151/2020 • TELsTP Non-Profit Initiative", architect: "ARCHITECT HANDSHAKE: Nakamitshe-Telstp-235153 — Verified" },
+  ar: { title: "شهادة الاعتماد المشترك", level: "المستوى", domain: "المجال", confidence: "الثقة", moh: "إرشادات وزارة الصحة", doctor: "اسم الطبيب / ملاحظة (اختياري)", download: "تنزيل الشهادة PDF", generating: "جارٍ الإنشاء...", success: "تم إنشاء الشهادة!", header: "Co-Accreditation Certificate / شهادة الاعتماد المشترك", subheader: "Collaborative AI-Human Clinical Decision Support", id: "CERT ID / رقم الشهادة", accLevel: "ACCREDITATION LEVEL / مستوى الاعتماد", dom: "DOMAIN / المجال", conf: "AI CONFIDENCE / ثقة الذكاء", mohLabel: "MOH GUIDELINES / إرشادات الصحة", val: "DOCTOR VALIDATION / مراجعة الطبيب", sess: "SESSION ID / رقم الجلسة", issued: "ISSUED / صدر بتاريخ", included: "Included / مُضمَّن", notIncluded: "Not Included / غير مُضمَّن", pending: "Pending / قيد المراجعة", footer1: "This certificate validates AI-human co-accredited decision support.", footer2: "HIPAA-compliant • Egyptian Data Protection Law 151/2020", architect: "ARCHITECT HANDSHAKE: Nakamitshe-Telstp-235153 — Verified" },
+  zh: { title: "共同认证证书", level: "等级", domain: "领域", confidence: "置信度", moh: "卫生部指南", doctor: "医生姓名 / 备注(可选)", download: "下载证书 PDF", generating: "生成中...", success: "证书已生成!", header: "Co-Accreditation Certificate / 共同认证证书", subheader: "AI-Human Collaborative Clinical Decision Support", id: "CERT ID / 证书编号", accLevel: "ACCREDITATION LEVEL / 认证等级", dom: "DOMAIN / 领域", conf: "AI CONFIDENCE / AI 置信度", mohLabel: "MOH GUIDELINES / 卫生部指南", val: "DOCTOR VALIDATION / 医生审核", sess: "SESSION ID / 会话编号", issued: "ISSUED / 签发日期", included: "Included / 已包含", notIncluded: "Not Included / 未包含", pending: "Pending / 待审核", footer1: "This certificate validates AI-human co-accredited decision support.", footer2: "HIPAA-compliant • Egyptian Data Protection Law 151/2020", architect: "ARCHITECT HANDSHAKE: Nakamitshe-Telstp-235153 — Verified" },
+};
+
+const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "clinical" }: CertificateGeneratorProps) => {
+  const { language } = useLanguage();
+  const L = LABELS[language] || LABELS.en;
+  const accentClass = accent === "wellness" ? "wellness" : "clinical";
   const extracted = extractAccreditation(messageContent);
   const [doctorOverride, setDoctorOverride] = useState("");
   const [mohEnabled, setMohEnabled] = useState(true);
