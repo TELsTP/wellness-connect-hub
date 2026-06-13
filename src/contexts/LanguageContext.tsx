@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-type Language = "en" | "ar";
+type Language = "en" | "ar" | "zh";
 
 interface LanguageContextType {
   language: Language;
@@ -101,6 +101,9 @@ const translations: Record<Language, Record<string, string>> = {
     "common.privacy_policy": "Privacy Policy",
     "common.terms": "Terms of Service",
     "common.new_chat": "New Chat",
+    "common.language_next": "中文",
+    "chat.upload_hint": "Upload lab report (PDF/image) and ask for interpretation",
+    "chat.lab_received": "Lab report received — analyzing...",
   },
   ar: {
     "hub.title": "مركز TELsTP للطب عن بُعد",
@@ -188,6 +191,71 @@ const translations: Record<Language, Record<string, string>> = {
     "common.privacy_policy": "سياسة الخصوصية",
     "common.terms": "شروط الخدمة",
     "common.new_chat": "محادثة جديدة",
+    "common.language_next": "English",
+    "chat.upload_hint": "ارفع تقرير المختبر (PDF/صورة) واطلب التفسير",
+    "chat.lab_received": "تم استلام تقرير المختبر — يتم التحليل...",
+  },
+  zh: {
+    "hub.title": "TELsTP 远程医疗中心",
+    "hub.subtitle": "由人工智能构建 • 服务全人类",
+    "hub.wellness_portal": "My-WellnessAI",
+    "hub.wellness_desc": "为所有人提供的 AI 健康指导",
+    "hub.assist_portal": "My-AssistAI",
+    "hub.assist_desc": "面向医疗专业人员的临床决策支持",
+    "hub.enter_portal": "进入门户",
+    "hub.disclaimer_title": "医疗免责声明",
+    "hub.disclaimer_text": "本平台仅提供 AI 生成的指导,而非医疗诊断。请始终咨询合格的医疗专业人员。紧急情况请立即拨打当地急救电话。",
+
+    "wellness.title": "My-WellnessAI",
+    "wellness.subtitle": "您的 AI 健康伙伴",
+    "wellness.chat_placeholder": "描述您的症状或健康问题...",
+    "wellness.tab_chat": "健康聊天",
+    "wellness.tab_lab": "化验解读",
+    "wellness.tab_meds": "药品信息",
+    "wellness.triage_title": "您感觉如何?",
+    "wellness.triage_mild": "轻微",
+    "wellness.triage_moderate": "中度",
+    "wellness.triage_severe": "严重 / 紧急",
+    "wellness.suggestion1": "我头痛并发烧",
+    "wellness.suggestion2": "我的血液检验结果意味着什么?",
+    "wellness.suggestion3": "感冒和流感的天然疗法",
+    "wellness.suggestion4": "我可以同时服用布洛芬和阿司匹林吗?",
+    "wellness.lab_paste": "在此粘贴您的化验结果...",
+    "wellness.lab_interpret": "解读结果",
+    "wellness.med_search": "搜索药品名称...",
+    "wellness.consent_title": "隐私与同意",
+    "wellness.consent_text": "使用本 AI 即表示您同意数据保持匿名,除非您选择参与研究(仅限非营利)。",
+    "wellness.consent_agree": "我理解并同意",
+
+    "assist.title": "My-AssistAI",
+    "assist.subtitle": "临床决策支持",
+    "assist.chat_placeholder": "描述临床病例或问题...",
+    "assist.tab_chat": "临床聊天",
+    "assist.tab_literature": "文献检索",
+    "assist.tab_drugs": "药品参考",
+    "assist.tab_summary": "患者摘要",
+    "assist.suggestion1": "胸痛伴呼吸困难的鉴别诊断",
+    "assist.suggestion2": "2 型糖尿病的最新治疗方案",
+    "assist.suggestion3": "二甲双胍 + 赖诺普利的药物相互作用",
+    "assist.suggestion4": "从患者数据生成临床摘要",
+    "assist.generate_cert": "生成共同认证证书",
+    "assist.literature_search": "搜索医学文献...",
+    "assist.drug_search": "搜索药品名称或相互作用...",
+    "assist.patient_data": "输入患者数据以生成摘要...",
+    "assist.generate_summary": "生成摘要",
+    "assist.moh_toggle": "包含埃及卫生部指南",
+
+    "common.send": "发送",
+    "common.back": "返回首页",
+    "common.loading": "思考中...",
+    "common.disclaimer": "⚕️ 这仅为 AI 指导 — 而非诊断。紧急情况请寻求专业护理。",
+    "common.language": "English",
+    "common.language_next": "العربية",
+    "common.privacy_policy": "隐私政策",
+    "common.terms": "服务条款",
+    "common.new_chat": "新对话",
+    "chat.upload_hint": "上传化验报告(PDF/图片)并请求解读",
+    "chat.lab_received": "已收到化验报告 — 正在分析...",
   },
 };
 
@@ -196,7 +264,8 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState<Language>(() => {
     const saved = localStorage.getItem("telstp-lang");
-    return (saved === "ar" ? "ar" : "en") as Language;
+    if (saved === "ar" || saved === "zh" || saved === "en") return saved as Language;
+    return "en";
   });
 
   const dir = language === "ar" ? "rtl" : "ltr";
@@ -209,7 +278,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   }, [language, dir]);
 
   const t = (key: string): string => {
-    return translations[language][key] || key;
+    return translations[language][key] || translations.en[key] || key;
   };
 
   return (
