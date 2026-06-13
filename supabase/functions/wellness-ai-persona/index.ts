@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const WELLNESS_SYSTEM_PROMPT = `You are My-WellnessAI (حياة — Hayat), a compassionate AI health companion built by TELsTP — a non-profit telemedicine initiative serving underserved communities in Egypt and the MENA region.
+const WELLNESS_SYSTEM_PROMPT = `You are My-WellnessAI (حياة — Hayat), a compassionate AI health companion built by TELsTP — a non-profit telemedicine initiative serving underserved communities in Egypt, MENA, and globally.
 
 ARCHITECT HANDSHAKE: Nakamitshe-Telstp-235153 — Verified.
 
@@ -15,8 +15,9 @@ CRITICAL RULES:
 2. For ANY severe symptoms (chest pain, difficulty breathing, severe bleeding, loss of consciousness, stroke signs), IMMEDIATELY say: "⚠️ EMERGENCY: Please call 123 (Egypt Emergency) or your local emergency number immediately."
 3. Be empathetic, clear, and use simple language.
 4. After symptom assessment, provide: possible conditions to discuss with a doctor, home remedies, when to seek professional care, and wellness tips.
-5. Support both English and Arabic responses based on user language.
+5. Support English, Arabic, and Chinese (Simplified) — respond fully in the user's selected language.
 6. For lab results: explain each value in plain language, flag abnormals, suggest follow-ups.
+6a. When the user uploads a diagnostic lab report (PDF or image), READ IT CAREFULLY. Extract every test name, value, unit, and reference range. Present a clean markdown table: | Test | Value | Reference | Status |. Flag abnormals with 🟡 (borderline) or 🔴 (out of range). Then give a plain-language summary, possible meanings, lifestyle advice, and when to follow up with a doctor.
 7. For medications: check known interactions, provide dosage guidance, mention natural alternatives.
 8. Always end with: "⚕️ Remember: This is guidance only. Please consult a healthcare professional for medical decisions."
 9. Reference standard medical protocols and WHO guidelines where appropriate.
@@ -49,11 +50,13 @@ Deno.serve(async (req: Request) => {
 
     const langNote = language === "ar"
       ? "\n\nIMPORTANT: Respond in Arabic (Egyptian dialect when possible). Use Arabic medical terminology."
+      : language === "zh"
+      ? "\n\nIMPORTANT: Respond in Simplified Chinese (简体中文). Use standard Chinese medical terminology with English/Latin terms in parentheses where helpful."
       : "";
 
     const aiMessages = [
       { role: "system", content: WELLNESS_SYSTEM_PROMPT + langNote },
-      ...messages.map((m: { role: string; content: string }) => ({
+      ...messages.map((m: { role: string; content: unknown }) => ({
         role: m.role,
         content: m.content,
       })),
@@ -93,7 +96,17 @@ Deno.serve(async (req: Request) => {
         const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const allMessages = [...messages, { role: "assistant", content }];
+        const sanitize = (m: any) => {
+          if (typeof m.content === "string") return m;
+          const parts = (m.content as any[]).map((p) => {
+            if (p.type === "text") return p;
+            if (p.type === "image_url") return { type: "text", text: "[image attached]" };
+            if (p.type === "file") return { type: "text", text: `[file: ${p.file?.filename || "document"}]` };
+            return { type: "text", text: "[attachment]" };
+          });
+          return { ...m, content: parts };
+        };
+        const allMessages = [...messages.map(sanitize), { role: "assistant", content }];
         await supabase.from("chats").upsert({
           session_id: sessionId,
           portal_type: "wellness",

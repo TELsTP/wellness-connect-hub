@@ -12,6 +12,7 @@ interface CertificateGeneratorProps {
   messageContent: string;
   sessionId: string;
   onClose: () => void;
+  accent?: "clinical" | "wellness";
 }
 
 const extractAccreditation = (content: string) => {
@@ -25,8 +26,18 @@ const extractAccreditation = (content: string) => {
   };
 }
 
-const CertificateGenerator = ({ messageContent, sessionId, onClose }: CertificateGeneratorProps) => {
-  const { t } = useLanguage();
+const LABELS: Record<string, Record<string, string>> = {
+  en: { title: "Co-Accreditation Certificate", level: "Level", domain: "Domain", confidence: "Confidence", moh: "MOH Guidelines", doctor: "Doctor name / override (optional)", download: "Download Certificate PDF", generating: "Generating...", success: "Certificate generated!", header: "Co-Accreditation Certificate", subheader: "AI-Human Collaborative Clinical Decision Support", id: "CERTIFICATE ID", accLevel: "ACCREDITATION LEVEL", dom: "DOMAIN", conf: "AI CONFIDENCE SCORE", mohLabel: "EGYPTIAN MOH GUIDELINES", val: "DOCTOR VALIDATION", sess: "SESSION ID", issued: "ISSUED", included: "Included", notIncluded: "Not Included", pending: "Pending Doctor Review", footer1: "This certificate validates AI-human co-accredited decision support. Not a medical license or diagnosis.", footer2: "HIPAA-compliant • Egyptian Data Protection Law 151/2020 • TELsTP Non-Profit Initiative", architect: "ARCHITECT HANDSHAKE: Nakamitshe-Telstp-235153 — Verified" },
+  ar: { title: "شهادة الاعتماد المشترك", level: "المستوى", domain: "المجال", confidence: "الثقة", moh: "إرشادات وزارة الصحة", doctor: "اسم الطبيب / ملاحظة (اختياري)", download: "تنزيل الشهادة PDF", generating: "جارٍ الإنشاء...", success: "تم إنشاء الشهادة!", header: "Co-Accreditation Certificate / شهادة الاعتماد المشترك", subheader: "Collaborative AI-Human Clinical Decision Support", id: "CERT ID / رقم الشهادة", accLevel: "ACCREDITATION LEVEL / مستوى الاعتماد", dom: "DOMAIN / المجال", conf: "AI CONFIDENCE / ثقة الذكاء", mohLabel: "MOH GUIDELINES / إرشادات الصحة", val: "DOCTOR VALIDATION / مراجعة الطبيب", sess: "SESSION ID / رقم الجلسة", issued: "ISSUED / صدر بتاريخ", included: "Included / مُضمَّن", notIncluded: "Not Included / غير مُضمَّن", pending: "Pending / قيد المراجعة", footer1: "This certificate validates AI-human co-accredited decision support.", footer2: "HIPAA-compliant • Egyptian Data Protection Law 151/2020", architect: "ARCHITECT HANDSHAKE: Nakamitshe-Telstp-235153 — Verified" },
+  zh: { title: "共同认证证书", level: "等级", domain: "领域", confidence: "置信度", moh: "卫生部指南", doctor: "医生姓名 / 备注(可选)", download: "下载证书 PDF", generating: "生成中...", success: "证书已生成!", header: "Co-Accreditation Certificate / 共同认证证书", subheader: "AI-Human Collaborative Clinical Decision Support", id: "CERT ID / 证书编号", accLevel: "ACCREDITATION LEVEL / 认证等级", dom: "DOMAIN / 领域", conf: "AI CONFIDENCE / AI 置信度", mohLabel: "MOH GUIDELINES / 卫生部指南", val: "DOCTOR VALIDATION / 医生审核", sess: "SESSION ID / 会话编号", issued: "ISSUED / 签发日期", included: "Included / 已包含", notIncluded: "Not Included / 未包含", pending: "Pending / 待审核", footer1: "This certificate validates AI-human co-accredited decision support.", footer2: "HIPAA-compliant • Egyptian Data Protection Law 151/2020", architect: "ARCHITECT HANDSHAKE: Nakamitshe-Telstp-235153 — Verified" },
+};
+
+const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "clinical" }: CertificateGeneratorProps) => {
+  const { language } = useLanguage();
+  const L = LABELS[language] || LABELS.en;
+  const A = accent === "wellness"
+    ? { wrap: "border-wellness/30 bg-wellness/5", text: "text-wellness", btn: "bg-wellness hover:bg-wellness/90" }
+    : { wrap: "border-clinical/30 bg-clinical/5", text: "text-clinical", btn: "bg-clinical hover:bg-clinical/90" };
   const extracted = extractAccreditation(messageContent);
   const [doctorOverride, setDoctorOverride] = useState("");
   const [mohEnabled, setMohEnabled] = useState(true);
@@ -176,7 +187,7 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose }: Certificat
       doc.text("HIPAA-compliant • Egyptian Data Protection Law 151/2020 • TELsTP Non-Profit Initiative", w / 2, h - 17, { align: "center" });
 
       doc.save(`TELsTP-Certificate-${certId}.pdf`);
-      toast.success("Certificate generated and downloaded!");
+      toast.success(L.success);
       onClose();
     } catch (err) {
       console.error("Certificate generation error:", err);
@@ -187,11 +198,11 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose }: Certificat
   };
 
   return (
-    <div className="mt-3 p-4 rounded-xl border border-clinical/30 bg-clinical/5 space-y-3">
+    <div className={`mt-3 p-4 rounded-xl border ${A.wrap} space-y-3`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-clinical">
+        <div className={`flex items-center gap-2 text-sm font-semibold ${A.text}`}>
           <Award className="w-4 h-4" />
-          Co-Accreditation Certificate
+          {L.title}
         </div>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <X className="w-4 h-4" />
@@ -200,38 +211,38 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose }: Certificat
 
       <div className="grid grid-cols-3 gap-3 text-xs">
         <div className="bg-card border rounded-lg p-2">
-          <span className="text-muted-foreground block">Level</span>
-          <span className="font-bold text-clinical">{extracted.level}</span>
+          <span className="text-muted-foreground block">{L.level}</span>
+          <span className={`font-bold ${A.text}`}>{extracted.level}</span>
         </div>
         <div className="bg-card border rounded-lg p-2">
-          <span className="text-muted-foreground block">Domain</span>
+          <span className="text-muted-foreground block">{L.domain}</span>
           <span className="font-bold">{extracted.domain}</span>
         </div>
         <div className="bg-card border rounded-lg p-2">
-          <span className="text-muted-foreground block">Confidence</span>
-          <span className="font-bold text-clinical">{extracted.confidence}%</span>
+          <span className="text-muted-foreground block">{L.confidence}</span>
+          <span className={`font-bold ${A.text}`}>{extracted.confidence}%</span>
         </div>
       </div>
 
       <div className="flex items-center gap-2 text-xs">
-        <span className="text-muted-foreground">MOH Guidelines</span>
+        <span className="text-muted-foreground">{L.moh}</span>
         <Switch checked={mohEnabled} onCheckedChange={setMohEnabled} />
       </div>
 
       <Input
         value={doctorOverride}
         onChange={(e) => setDoctorOverride(e.target.value)}
-        placeholder="Doctor name / override note (optional)"
+        placeholder={L.doctor}
         className="text-sm"
       />
 
       <Button
         onClick={generatePDF}
         disabled={generating}
-        className="w-full bg-clinical hover:bg-clinical/90 text-white gap-2"
+        className={`w-full ${A.btn} text-white gap-2`}
       >
         <Download className="w-4 h-4" />
-        {generating ? "Generating..." : "Download Certificate PDF"}
+        {generating ? L.generating : L.download}
       </Button>
     </div>
   );

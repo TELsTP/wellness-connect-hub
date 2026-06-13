@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import MultimediaChat, { ChatMessage } from "@/components/shared/MultimediaChat";
+import { filesToContentParts } from "@/lib/multimedia";
 import ConsentBanner from "@/components/shared/ConsentBanner";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import LanguageToggle from "@/components/shared/LanguageToggle";
@@ -43,17 +44,34 @@ const WellnessPortal = () => {
     msgs: ChatMessage[],
     setMsgs: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
     setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-    extraContext?: string
+    extraContext?: string,
+    files?: File[]
   ) => {
-    const userMsg: ChatMessage = { role: "user", content: extraContext ? `${extraContext}\n\n${content}` : content };
+    const text = extraContext ? `${extraContext}\n\n${content}` : content;
+    const parts = files && files.length > 0 ? await filesToContentParts(files) : [];
+    const previewMedia = parts
+      .filter((p) => p.type !== "text")
+      .map((p: any) =>
+        p.type === "image_url"
+          ? { type: "image", url: p.image_url.url }
+          : { type: "file", url: "", name: p.file?.filename || "document" }
+      );
+    const userMsg: ChatMessage = { role: "user", content: text, media: previewMedia };
     const updatedMsgs = [...msgs, userMsg];
     setMsgs(updatedMsgs);
     setLoading(true);
 
+    const apiMessages = updatedMsgs.map((m, i) => {
+      if (i === updatedMsgs.length - 1 && parts.length > 0) {
+        return { role: m.role, content: [{ type: "text", text: text || "Please analyze the attached lab report." }, ...parts] };
+      }
+      return { role: m.role, content: m.content };
+    });
+
     try {
       const { data, error } = await supabase.functions.invoke("wellness-ai-persona", {
         body: {
-          messages: updatedMsgs.map(m => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
           sessionId: sessionId.current,
           language,
         },
@@ -80,9 +98,9 @@ const WellnessPortal = () => {
     }
   }, [language]);
 
-  const handleChatSend = (msg: string) => {
+  const handleChatSend = (msg: string, media?: File[]) => {
     const triageContext = triageLevel ? `Patient reports severity: ${triageLevel}.` : "";
-    callEdgeFunction(msg, messages, setMessages, setIsLoading, triageContext || undefined);
+    callEdgeFunction(msg || "Please analyze the attached lab report.", messages, setMessages, setIsLoading, triageContext || undefined, media);
   };
 
   const handleLabInterpret = () => {
@@ -201,6 +219,7 @@ const WellnessPortal = () => {
               suggestions={suggestions}
               onNewChat={() => { setMessages([]); setTriageLevel(null); }}
               accentColor="wellness"
+              sessionId={sessionId.current}
             />
           </TabsContent>
 

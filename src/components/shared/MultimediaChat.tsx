@@ -215,7 +215,7 @@ const MultimediaChat = ({
                 <p>{msg.content}</p>
               )}
             </div>
-            {msg.role === "assistant" && accentColor === "clinical" && (
+            {msg.role === "assistant" && (
               <>
                 {certOpenIndex === i ? (
                   <div className="max-w-[85%] w-full">
@@ -223,15 +223,16 @@ const MultimediaChat = ({
                       messageContent={msg.content}
                       sessionId={sessionId}
                       onClose={() => setCertOpenIndex(null)}
+                      accent={accentColor}
                     />
                   </div>
                 ) : (
                   <button
                     onClick={() => setCertOpenIndex(i)}
-                    className="mt-1 flex items-center gap-1.5 text-xs text-clinical hover:text-clinical/80 transition-colors px-2 py-1 rounded-lg hover:bg-clinical/5"
+                    className={`mt-1 flex items-center gap-1.5 text-xs ${accentStyles.text} hover:opacity-80 transition-opacity px-2 py-1 rounded-lg ${accentStyles.bg}`}
                   >
                     <Award className="w-3.5 h-3.5" />
-                    Generate Co-Accreditation Certificate
+                    {t("assist.generate_cert")}
                   </button>
                 )}
               </>
