@@ -185,7 +185,7 @@ const CertificateGenerator = ({ messageContent, sessionId, onClose, accent = "cl
       doc.text("HIPAA-compliant • Egyptian Data Protection Law 151/2020 • TELsTP Non-Profit Initiative", w / 2, h - 17, { align: "center" });
 
       doc.save(`TELsTP-Certificate-${certId}.pdf`);
-      toast.success("Certificate generated and downloaded!");
+      toast.success(L.success);
       onClose();
     } catch (err) {
       console.error("Certificate generation error:", err);
