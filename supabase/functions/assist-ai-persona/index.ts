@@ -34,13 +34,20 @@ RULES:
 FORMAT: Use markdown tables, headers, and structured formatting for clinical clarity.
 Always include: "🏅 TELsTP Co-Accreditation: Level 3 — Clinical Domain | Confidence: [score]%"`;
 
+// — escalation & bridge rules appended to the system prompt at runtime —
+const ASSIST_ESCALATION_RULES = `
+
+ESCALATION: If the case is best handed back to the patient-facing companion (lifestyle education, language-localized explanation, mental-health support, post-discharge counseling, anything outside clinical decision support), append a single marker on its own final line: [[ESCALATE:short-reason]]  — the host app uses it to deputize the case to My-WellnessAI. Do NOT mention the marker in the prose.
+
+BRIDGE MODE: When the request is marked as cross-AI bridge mode, you are conversing with My-WellnessAI (not the clinician). Keep replies tight, address the other AI by name when useful, drop the long disclaimer line each turn — keep only the accreditation footer.`;
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, sessionId, language, mohGuidelines } = await req.json();
+    const { messages, sessionId, language, mohGuidelines, bridgeMode } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -68,7 +75,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const aiMessages = [
-      { role: "system", content: ASSIST_SYSTEM_PROMPT + systemAddendum },
+      { role: "system", content: ASSIST_SYSTEM_PROMPT + ASSIST_ESCALATION_RULES + systemAddendum },
       ...messages.map((m: { role: string; content: unknown }) => ({
         role: m.role,
         content: m.content,
@@ -100,10 +107,14 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "Unable to generate clinical response. Please try again.";
+    const rawContent = data.choices?.[0]?.message?.content || "Unable to generate clinical response. Please try again.";
+    const escalateMatch = rawContent.match(/\[\[ESCALATE(?::([^\]]+))?\]\]/);
+    const content = escalateMatch ? rawContent.replace(escalateMatch[0], "").trim() : rawContent;
+    const escalate = !!escalateMatch;
+    const escalateReason = escalateMatch ? (escalateMatch[1] || "model-flagged").trim() : null;
 
-    // Log to chats table
-    if (sessionId) {
+    // Log to chats table (skip in bridge mode — that row is owned by ai-deputize/useBridge)
+    if (sessionId && !bridgeMode) {
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -135,6 +146,8 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         content,
+        escalate,
+        escalateReason,
         accreditation: {
           level: "Level 3",
           domain: "Clinical",
