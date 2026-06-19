@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Send, Loader2, RotateCcw, Mic, MicOff, Camera,
-  MonitorUp, Paperclip, X, Image as ImageIcon
+  MonitorUp, Paperclip, X, Image as ImageIcon, Handshake
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import MedicalDisclaimer from "./MedicalDisclaimer";
@@ -28,11 +28,14 @@ interface Props {
   onNewChat?: () => void;
   accentColor?: "wellness" | "clinical";
   sessionId?: string;
+  onDeputize?: () => void;
+  deputizeLabel?: string;
 }
 
 const MultimediaChat = ({
   messages, onSend, isLoading, placeholder,
-  suggestions = [], onNewChat, accentColor = "wellness", sessionId = ""
+  suggestions = [], onNewChat, accentColor = "wellness", sessionId = "",
+  onDeputize, deputizeLabel,
 }: Props) => {
   const [input, setInput] = useState("");
   const { t } = useLanguage();
@@ -291,6 +294,18 @@ const MultimediaChat = ({
           {onNewChat && messages.length > 0 && (
             <Button variant="ghost" size="icon" onClick={onNewChat} className="shrink-0" title="New Chat">
               <RotateCcw className="w-4 h-4" />
+            </Button>
+          )}
+
+          {onDeputize && messages.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onDeputize}
+              className={`shrink-0 ${accentStyles.text}`}
+              title={deputizeLabel || "Deputize to the other AI"}
+            >
+              <Handshake className="w-4 h-4" />
             </Button>
           )}
 
