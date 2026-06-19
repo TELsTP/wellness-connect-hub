@@ -12,6 +12,8 @@ import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import LanguageToggle from "@/components/shared/LanguageToggle";
 import ArchitectHandshake from "@/components/shared/ArchitectHandshake";
 import HayatPersona from "@/components/shared/HayatPersona";
+import BridgePanel from "@/components/shared/BridgePanel";
+import { parseEscalateMarker, detectRedFlag } from "@/lib/redFlags";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -33,6 +35,9 @@ const WellnessPortal = () => {
   const [medMessages, setMedMessages] = useState<ChatMessage[]>([]);
   const [medLoading, setMedLoading] = useState(false);
   const sessionId = useRef(`wellness-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const [bridgeId, setBridgeId] = useState<string | null>(null);
+  const [bridgeOpen, setBridgeOpen] = useState(false);
+  const [deputizing, setDeputizing] = useState(false);
 
   const handleConsent = () => {
     localStorage.setItem("telstp-wellness-consent", "true");
@@ -79,11 +84,19 @@ const WellnessPortal = () => {
 
       if (error) throw error;
 
-      const assistantMsg: ChatMessage = {
-        role: "assistant",
-        content: data.content || "I'm sorry, please try again.",
-      };
+      const raw: string = data?.content || "I'm sorry, please try again.";
+      const { reason: markerReason, cleaned } = parseEscalateMarker(raw);
+      const fallbackReason = markerReason ? null : detectRedFlag(content);
+      const escalateReason = data?.escalateReason || markerReason || fallbackReason;
+
+      const assistantMsg: ChatMessage = { role: "assistant", content: cleaned };
       setMsgs(prev => [...prev, assistantMsg]);
+
+      if ((data?.escalate || escalateReason) && !bridgeId) {
+        // Auto-deputize to AssistAI on red flag
+        const finalMsgs = [...updatedMsgs, assistantMsg];
+        await openDeputizeBridge(finalMsgs, escalateReason || "auto-detected red flag");
+      }
     } catch (err) {
       console.error("Wellness AI error:", err);
       toast.error("AI service temporarily unavailable. Using offline guidance.");
@@ -96,7 +109,49 @@ const WellnessPortal = () => {
     } finally {
       setLoading(false);
     }
-  }, [language]);
+  // openDeputizeBridge identity is stable enough; depend on language + bridgeId
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, bridgeId]);
+
+  const openDeputizeBridge = useCallback(async (transcript: ChatMessage[], reason: string) => {
+    if (deputizing || bridgeId) return;
+    setDeputizing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-deputize", {
+        body: {
+          fromPortal: "wellness",
+          fromSessionId: sessionId.current,
+          transcript: transcript.map((m) => ({ role: m.role, content: m.content })),
+          language,
+          reason,
+        },
+      });
+      if (error) throw error;
+      const id = (data as { bridgeId?: string })?.bridgeId;
+      if (id) {
+        setBridgeId(id);
+        setBridgeOpen(true);
+        toast.success("Deputized to My-AssistAI", { description: reason });
+      }
+    } catch (e) {
+      console.error("deputize failed", e);
+      toast.error("Could not open bridge to AssistAI");
+    } finally {
+      setDeputizing(false);
+    }
+  }, [bridgeId, deputizing, language]);
+
+  const handleManualDeputize = () => {
+    if (messages.length === 0) {
+      toast.info("Start the conversation first, then deputize.");
+      return;
+    }
+    if (bridgeId) {
+      setBridgeOpen(true);
+      return;
+    }
+    openDeputizeBridge(messages, "manual handoff by patient");
+  };
 
   const handleChatSend = (msg: string, media?: File[]) => {
     const triageContext = triageLevel ? `Patient reports severity: ${triageLevel}.` : "";
@@ -220,6 +275,8 @@ const WellnessPortal = () => {
               onNewChat={() => { setMessages([]); setTriageLevel(null); }}
               accentColor="wellness"
               sessionId={sessionId.current}
+              onDeputize={handleManualDeputize}
+              deputizeLabel="Deputize to My-AssistAI"
             />
           </TabsContent>
 
@@ -275,6 +332,13 @@ const WellnessPortal = () => {
       </div>
 
       <HayatPersona portalType="wellness" />
+      <BridgePanel
+        bridgeId={bridgeId}
+        side="wellness"
+        language={language}
+        open={bridgeOpen}
+        onOpenChange={setBridgeOpen}
+      />
     </div>
   );
 };
