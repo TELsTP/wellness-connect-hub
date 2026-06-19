@@ -1,149 +1,90 @@
-# 🏥 TELsTP Telemedicine Hub — MVP
 
-A non-profit AI-powered telemedicine platform serving patients and healthcare professionals, with two dedicated portals accessible from a unified hub.  Built as the first live pillar of the TELsTP Cognitive Ecosystem (Health-Tech & Telemedicine platform), powered by Supabase as the backend.
-
-Supabase Project Details (use these exact credentials):
-
-Project URL: [https://dbrxrhjveezxtfwvialj.supabase.co](https://dbrxrhjveezxtfwvialj.supabase.co)
-
-Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRicnhyaGp2ZWV6eHRmd3ZpYWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxOTE3NTIsImV4cCI6MjA4OTc2Nzc1Mn0.rMOeeYR_2pHCypYm4gISqHkeV7ZxW8_ReTQC12uBWjM
-
-Direct DB connection string: postgresql://postgres:[qKLnbv9B5ErqNumy@db.dbrxrhjveezxtfwvialj.supabase.co:5432](mailto:qKLnbv9B5ErqNumy@db.dbrxrhjveezxtfwvialj.supabase.co:5432)/postgres
-
-Project name in Supabase: telstp-unity (Omnicognitor backend)
-
-Core Requirements:
-
-Lovable React/Vite web app
-
-Supabase for Auth, Database, Realtime, and Edge Functions
-
-Bilingual (Arabic + English) with full RTL support
-
-Anonymous-first access (no personal health data stored)
-
-Export-ready modular codebase with clear hooks for future OmniCog integration
-
-1. Hub Landing Page
-
-Professional medical-themed landing page with the project’s mission statement (“Built by AI • For Humanity – Democratizing accredited AI-powered care in MENA and beyond”).
-
-Clear navigation to two portals: My-WellnessAI (patients) and My-AssistAI (doctors).
-
-Arabic + English language toggle (RTL support).
-
-HIPAA-style + Egyptian Personal Data Protection Law (Law 151 of 2020) compliant disclaimer banner.
-
-Features overview, statistics, and “How it works” section.
-
-Visible “Powered by TELsTP AI Co-Accreditation” badge/footer note linking to the full research report summary.
-
-“Our Impact” counter (placeholder): “78% global AI adoption gap closed in MENA”.
-
-Contact/About section for the non-profit organization.
-
-2. My-WellnessAI Portal (Patient-Facing)
-
-Inspired by [DocAI.live](http://DocAI.live)’s clean, approachable design.
-
-AI Wellness Chat — conversational interface where users describe symptoms and receive guidance including AI-generated possibilities for discussion with your doctor, home remedies, when to seek emergency care, and wellness tips.
-
-Symptom severity triage flow at the start of every chat (mild / moderate / severe).
-
-Lab Report Interpreter — upload or paste lab results, get plain-language explanations.
-
-Medication & Wellness Info — drug interaction checks, dosage guidance, natural remedies.
-
-Medical Disclaimer prominently displayed on every page and in every AI response: “This is guidance only, not a diagnosis. Seek professional care for emergencies.”
-
-Suggested symptom prompts for easy onboarding.
-
-Bilingual support (Arabic/English) with RTL layout.
-
-“Save to My TELsTP Profile” button after lab or medication sessions (uses local storage for MVP, seeds unified memory).
-
-Emergency detection with one-tap “Call 123” (Egypt ambulance) or nearest hospital locator.
-
-3. My-AssistAI Portal (Doctor-Facing)
-
-Inspired by [Medcol.io](http://Medcol.io)’s clinical, professional design (dark/light theme).
-
-Clinical Decision Support Chat — AI assistant for differential diagnosis, treatment protocols, and clinical reasoning.
-
-Medical Literature Search — AI-powered search referencing standard medical protocols, SOPs, Egyptian Ministry of Health guidelines (toggle), and clinical guidelines.
-
-Drug Reference & Interactions — comprehensive medication database queries.
-
-Patient Summary Generator — input patient data or pull anonymized case from WellnessAI (with consent) and get structured clinical summaries.
-
-“Generate Co-Accreditation Certificate” button on every clinical response (one-click PDF showing AI accreditation level, domain, confidence score, and human-doctor override field).
-
-Professional dark/light theme suitable for clinical environments.
-
-4. AI Backend (Lovable AI + Supabase Edge Functions)
-
-Supabase Edge Functions powering both portals with specialized medical system prompts.
-
-Separate AI personas: empathetic wellness guide (patients) vs. clinical assistant (doctors).
-
-Streaming responses for real-time chat experience.
-
-Built-in medical knowledge via carefully crafted system prompts covering standard medical protocols, first aid, wellness guidance, and Egyptian Arabic medical terminology validation.
-
-Shared memory layer between the two portals (session-based for MVP) so patient cases can feed into doctor portal with consent.
-
-Inject accreditation metadata into every response (e.g. “This response is Level 2 Accredited — Clinical Reasoning domain”).
-
-Clear disclaimers injected into every AI response.
-
-Rate limit and error handling with user-friendly messages.
-
-Explicit consent banner on first chat: “By using this AI you agree your data stays anonymous and is not stored for training unless you opt-in for research (non-profit only).”
-
-5. Compliance & Safety Features
-
-Medical disclaimer on every page and in every AI response.
-
-Emergency detection: AI flags urgent symptoms and directs to emergency services with Egyptian local links.
-
-No personal health data stored (anonymous access) — HIPAA-style + Egyptian Personal Data Protection Law compliant by design.
-
-Cookie consent and privacy policy page.
-
-All data stored in Supabase with Row Level Security enabled.
-
-6. Export-Ready Structure
-
-Clean, modular codebase organized by portal (wellness vs. clinical).
-
-Components organized by portal (wellness vs. clinical).
-
-Documentation of the AI edge function for Supabase Edge Functions.
-
-Add a /telstp-ecosystem folder in the codebase with clear hooks for OmniCognitor auth and the 12-hub router (future integration points for Hub 5 – Clinical Trial Matching and Hub 7 – Precision Medicine).
-
-Full Supabase client integration (auth, realtime, database) using the credentials above.
-
-GitHub Repo Generation (Critical Final Step)
-
-After building the full app, use the GitHub connector (activated on my Lovable profile #10+) to create a new repository on my dedicated GitHub account.
-
-Repo name: telstp-telemedicine-hub-mvp
-
-Include a complete [README.md](http://README.md) with:
-
-Full project overview and Supabase credentials (redacted for security)
-
-Folder structure documentation
-
-Setup instructions for local development (Supabase + Lovable export)
-
-How to run Supabase Edge Functions locally
-
-Future OmniCog integration roadmap
-
-License: Non-profit open-source (TELsTP)
-
-Commit the entire clean codebase so I can pull it locally via Termux on mobile, continue development by hand, and deploy separately to Vercel later.
-
-This is the exact blueprint-aligned MVP we need to ship first. Build it clean, make it beautiful, and make the Co-Accreditation certificate the star feature.
+# AI Deputization Bridge — WellnessAI ↔ AssistAI
+
+A live, bidirectional channel so the two AIs can hand off cases, share the patient briefing + full transcript, and keep talking to each other (and to both human users) in real time.
+
+## Core constraint honored
+Per your standing rule, **no new database tables**. The bridge reuses the existing `chats` table with a dedicated `portal_type = 'bridge'` and a shared `session_id` (`bridge-<shortId>`). Realtime on `chats` carries the two-way stream.
+
+## What you'll see
+
+1. **Manual handoff button** in both `MultimediaChat` toolbars:
+   - WellnessAI chat → "🩺 Deputize to AssistAI"
+   - AssistAI chat → "💚 Refer to WellnessAI"
+2. **Auto-escalation** — when the responding AI detects a red flag (critical lab, emergency symptom, complex radiology), its edge function returns `escalate: true` and the UI auto-opens the bridge with a pre-filled briefing.
+3. **Bridge panel** (slide-over sheet) on both portals:
+   - Header: case ID, both session IDs, language, accreditation level
+   - Briefing card (chief complaint, key findings, flagged labs/imaging)
+   - Full transcript snapshot (collapsed by default)
+   - Live thread where messages from the other side appear via Supabase Realtime
+   - Composer where the local user can post; the *opposite AI* auto-replies in the same thread
+4. **Notification badge** on the portal header when a new bridge message arrives while the panel is closed.
+
+## How a handoff flows
+
+```text
+WellnessAI session (patient)
+        │  red flag OR button click
+        ▼
+[ai-deputize edge fn]
+  ├─ creates chats row: session_id=bridge-xyz, portal_type='bridge'
+  │     payload = { briefing, transcript, fromPortal, language }
+  ├─ links both sessions in accreditation_logs (audit)
+  └─ returns bridgeId
+        │
+        ▼
+Both portals open Bridge Panel for bridge-xyz
+        │
+        ▼
+Supabase Realtime on chats (filter: session_id=bridge-xyz)
+   ├─ WellnessAI side posts  ──► AssistAI auto-replies via assist-ai-persona
+   └─ AssistAI side posts    ──► WellnessAI auto-replies via wellness-ai-persona
+```
+
+Each AI reply uses the full bridge transcript as context, so both sides stay in sync.
+
+## Files touched
+
+**New**
+- `supabase/functions/ai-deputize/index.ts` — creates the bridge record, builds the briefing, calls Lovable AI Gateway once to synthesize a structured handoff summary (markdown), writes audit row to `accreditation_logs`.
+- `src/components/shared/BridgePanel.tsx` — slide-over Sheet with briefing, transcript, live thread, composer.
+- `src/hooks/useBridge.ts` — Realtime subscription, send-message helper, opposite-AI reply trigger.
+- `src/lib/redFlags.ts` — small regex/keyword scanner used as a client-side fallback when the model didn't emit `[[ESCALATE]]`.
+
+**Edited**
+- `supabase/functions/wellness-ai-persona/index.ts` — system prompt gains rule: if you detect emergency / critical lab / out-of-scope clinical, end response with `\n\n[[ESCALATE:reason]]`. Response JSON includes `escalate` + `escalateReason`.
+- `supabase/functions/assist-ai-persona/index.ts` — same pattern, escalates *toward wellness* for patient-facing follow-up (rehab advice, lifestyle, language-localized explanation).
+- `src/components/shared/MultimediaChat.tsx` — adds a "Deputize" button next to "New chat" (color matches `accentColor`), wired via a new `onDeputize?` prop.
+- `src/pages/WellnessPortal.tsx` & `src/pages/AssistPortal.tsx` — wire `onDeputize`, mount `<BridgePanel/>`, auto-open it when `data.escalate === true`.
+
+## Migration (Realtime only — no new tables)
+
+```sql
+-- Enable Realtime stream on the existing chats table
+ALTER TABLE public.chats REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.chats;
+```
+
+RLS on `chats` already permits anon read/write for bridge rows (existing 4 policies cover it). No grants change.
+
+## Bridge message shape (stored in `chats.messages` jsonb)
+
+```jsonc
+[
+  { "role": "system", "kind": "briefing",  "from": "wellness", "content": "..." },
+  { "role": "system", "kind": "transcript","from": "wellness", "content": [/* original UIMessages */] },
+  { "role": "user",   "from": "wellness-human", "content": "Quick question for AssistAI..." },
+  { "role": "assistant", "from": "assist-ai",   "content": "Per ESC 2024 ..." },
+  { "role": "user",   "from": "assist-human",   "content": "Patient also reports..." },
+  { "role": "assistant","from": "wellness-ai",  "content": "Localized explanation in AR..." }
+]
+```
+
+`from` distinguishes the four participants so the panel can render avatars + colors and so each AI knows whose turn it is.
+
+## Deferred / not in this pass
+- Voice/screen-share *inside* the bridge (current scope is text + briefing + media URLs already in transcript).
+- Cross-language auto-translation of bridge messages (each AI already responds in the user's language; we'll leave translation to the receiving AI).
+- A "close case" workflow with co-accreditation cert — easy follow-up once the bridge is stable.
+
+Approve and I'll implement, redeploy both edge functions plus the new `ai-deputize`, and verify the Realtime channel end-to-end.
