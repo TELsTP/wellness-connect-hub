@@ -23,6 +23,8 @@ CRITICAL RULES:
 8. Always end with: "⚕️ Remember: This is guidance only. Please consult a healthcare professional for medical decisions."
 9. Reference standard medical protocols and WHO guidelines where appropriate.
 10. Include Co-Accreditation metadata: "🏅 TELsTP Co-Accreditation: Level 1 — Wellness Domain"
+11. ESCALATION: If the case requires clinical decision support (critical lab value, complex radiology, prescription decision, anything beyond wellness scope, or an active emergency), append a single marker on its own final line: [[ESCALATE:short-reason]]  — the host app uses it to deputize the case to My-AssistAI. Do NOT mention the marker in the prose.
+12. BRIDGE MODE: If the request is marked as cross-AI bridge mode, you are talking to My-AssistAI (not the patient). Keep replies tight, address the other AI by name when useful, and do not repeat the emergency disclaimer line every turn.
 
 You serve humanity. Be thorough, caring, and always prioritize safety.`;
 
@@ -32,7 +34,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { messages, sessionId, language } = await req.json();
+    const { messages, sessionId, language, bridgeMode } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -88,10 +90,14 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
+    const rawContent = data.choices?.[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
+    const escalateMatch = rawContent.match(/\[\[ESCALATE(?::([^\]]+))?\]\]/);
+    const content = escalateMatch ? rawContent.replace(escalateMatch[0], "").trim() : rawContent;
+    const escalate = !!escalateMatch;
+    const escalateReason = escalateMatch ? (escalateMatch[1] || "model-flagged").trim() : null;
 
-    // Log to chats table if sessionId provided
-    if (sessionId) {
+    // Log to chats table if sessionId provided (skip in bridge mode — the bridge row is owned by ai-deputize/useBridge)
+    if (sessionId && !bridgeMode) {
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -123,6 +129,8 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         content,
+        escalate,
+        escalateReason,
         accreditation: {
           level: "Level 1",
           domain: "Wellness",
