@@ -40,7 +40,7 @@ const MultimediaChat = ({
   onDeputize, deputizeLabel,
 }: Props) => {
   const [input, setInput] = useState("");
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [certOpenIndex, setCertOpenIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,10 +50,26 @@ const MultimediaChat = ({
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const lastSpokenRef = useRef<number>(-1);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-speak the latest assistant reply when voice mode is on.
+  useEffect(() => {
+    if (!voiceMode) return;
+    const lastIdx = messages.length - 1;
+    const last = messages[lastIdx];
+    if (last?.role === "assistant" && lastIdx !== lastSpokenRef.current) {
+      lastSpokenRef.current = lastIdx;
+      speak(last.content, language);
+    }
+  }, [messages, voiceMode, language]);
+
+  useEffect(() => () => stopSpeaking(), []);
 
   const handleSend = () => {
     if ((!input.trim() && attachedFiles.length === 0) || isLoading) return;
@@ -69,7 +85,7 @@ const MultimediaChat = ({
     }
   };
 
-  // Voice recording
+  // Voice recording — auto-transcribes and sends as a message.
   const toggleRecording = useCallback(async () => {
     if (isRecording && mediaRecorder) {
       mediaRecorder.stop();
@@ -78,17 +94,48 @@ const MultimediaChat = ({
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      const mimeType = ["audio/webm", "audio/mp4"].find((tp) =>
+        (window as unknown as { MediaRecorder: typeof MediaRecorder }).MediaRecorder?.isTypeSupported?.(tp),
+      );
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks: BlobPart[] = [];
 
       recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
-        setAttachedFiles(prev => [...prev, file]);
-        stream.getTracks().forEach(t => t.stop());
-        toast.success("Voice message recorded");
+      recorder.onstop = async () => {
+        const type = recorder.mimeType || "audio/webm";
+        const blob = new Blob(chunks, { type });
+        stream.getTracks().forEach(tr => tr.stop());
+        if (blob.size < 1024) {
+          toast.error(language === "ar" ? "التسجيل فارغ — حاول مرة أخرى" : "Recording empty — try again");
+          return;
+        }
+        const ext = type.includes("mp4") ? "mp4" : "webm";
+        const file = new File([blob], `voice-${Date.now()}.${ext}`, { type });
+        setTranscribing(true);
+        try {
+          const form = new FormData();
+          form.append("file", file);
+          form.append("language", language);
+          const { data, error } = await supabase.functions.invoke("voice-transcribe", {
+            body: form,
+          });
+          if (error) throw error;
+          const text = (data as { text?: string })?.text?.trim();
+          if (!text) {
+            toast.error(language === "ar" ? "تعذّر فهم الصوت" : "Couldn't understand audio");
+            return;
+          }
+          onSend(text);
+          setVoiceMode(true); // turn on speaker so the reply is read aloud
+        } catch (e) {
+          console.error(e);
+          toast.error(language === "ar" ? "فشل تفريغ الصوت" : "Transcription failed");
+        } finally {
+          setTranscribing(false);
+        }
       };
 
       recorder.start();
@@ -97,7 +144,7 @@ const MultimediaChat = ({
     } catch (err) {
       toast.error("Microphone access denied");
     }
-  }, [isRecording, mediaRecorder]);
+  }, [isRecording, mediaRecorder, language, onSend]);
 
   // Camera capture
   const toggleCamera = useCallback(async () => {
