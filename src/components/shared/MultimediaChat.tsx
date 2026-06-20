@@ -337,6 +337,41 @@ const MultimediaChat = ({
 
       <MedicalDisclaimer variant="compact" />
 
+      {/* Big push-to-talk bar — for users who can't read/type */}
+      <div className="px-3 pt-2">
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={toggleRecording}
+            disabled={transcribing || isLoading}
+            className={`flex-1 h-12 text-base font-semibold ${
+              isRecording
+                ? "bg-emergency hover:bg-emergency/90 text-white animate-pulse"
+                : accentStyles.btn + " text-white"
+            }`}
+          >
+            {transcribing ? (
+              <><Loader2 className="w-5 h-5 me-2 animate-spin" /> {language === "ar" ? "جارٍ التفريغ..." : "Transcribing..."}</>
+            ) : isRecording ? (
+              <><MicOff className="w-5 h-5 me-2" /> {language === "ar" ? "اضغط للإيقاف" : "Tap to stop"}</>
+            ) : (
+              <><Mic className="w-5 h-5 me-2" /> {language === "ar" ? "اضغط للتحدث" : "Tap to speak"}</>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              if (voiceMode) { stopSpeaking(); setVoiceMode(false); }
+              else { setVoiceMode(true); }
+            }}
+            className="h-12 w-12 shrink-0"
+            title={voiceMode ? "Mute spoken replies" : "Read replies aloud"}
+          >
+            {voiceMode ? <Volume2 className="w-5 h-5 text-wellness" /> : <VolumeX className="w-5 h-5 text-muted-foreground" />}
+          </Button>
+        </div>
+      </div>
+
       {/* Input area with multimedia controls */}
       <div className="border-t bg-card/50 p-3">
         <div className="flex items-end gap-2">
