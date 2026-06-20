@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Send, Loader2, RotateCcw, Mic, MicOff, Camera,
-  MonitorUp, Paperclip, X, Image as ImageIcon, Handshake
+  MonitorUp, Paperclip, X, Image as ImageIcon, Handshake,
+  Volume2, VolumeX
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import MedicalDisclaimer from "./MedicalDisclaimer";
@@ -12,6 +13,7 @@ import CertificateGenerator from "./CertificateGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Award } from "lucide-react";
+import { speak, stopSpeaking } from "@/lib/speak";
 
 export interface ChatMessage {
   role: "user" | "assistant";
