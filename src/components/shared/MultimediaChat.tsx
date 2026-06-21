@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Send, Loader2, RotateCcw, Mic, MicOff, Camera,
-  MonitorUp, Paperclip, X, Image as ImageIcon, Handshake,
+  MonitorUp, Paperclip, X, Image as ImageIcon, Handshake, Video, Square,
   Volume2, VolumeX
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -53,6 +53,14 @@ const MultimediaChat = ({
   const [transcribing, setTranscribing] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const lastSpokenRef = useRef<number>(-1);
+  // Video recording state
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const [videoRecorder, setVideoRecorder] = useState<MediaRecorder | null>(null);
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [videoElapsed, setVideoElapsed] = useState(0);
+  const videoPreviewRef = useRef<HTMLVideoElement>(null);
+  const videoTimerRef = useRef<number | null>(null);
+  const VIDEO_MAX_SECONDS = 15;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,6 +78,12 @@ const MultimediaChat = ({
   }, [messages, voiceMode, language]);
 
   useEffect(() => () => stopSpeaking(), []);
+
+  // Cleanup video stream if component unmounts mid-recording
+  useEffect(() => () => {
+    if (videoTimerRef.current) window.clearInterval(videoTimerRef.current);
+    videoStream?.getTracks().forEach(t => t.stop());
+  }, [videoStream]);
 
   const handleSend = () => {
     if ((!input.trim() && attachedFiles.length === 0) || isLoading) return;
@@ -207,6 +221,124 @@ const MultimediaChat = ({
     }
   }, []);
 
+  // ---- Video capture: record short clip, extract keyframes + transcribe audio ----
+  const stopVideoRecording = useCallback(() => {
+    videoRecorder?.state === "recording" && videoRecorder.stop();
+  }, [videoRecorder]);
+
+  const extractFramesFromBlob = async (blob: Blob, count = 4): Promise<File[]> => {
+    const url = URL.createObjectURL(blob);
+    const v = document.createElement("video");
+    v.src = url;
+    v.muted = true;
+    v.playsInline = true;
+    await new Promise<void>((res, rej) => {
+      v.onloadedmetadata = () => res();
+      v.onerror = () => rej(new Error("video metadata failed"));
+    });
+    // Some browsers report Infinity duration for MediaRecorder blobs; nudge it.
+    if (!isFinite(v.duration) || v.duration === 0) {
+      await new Promise<void>((res) => {
+        v.currentTime = 1e6;
+        v.ontimeupdate = () => { v.ontimeupdate = null; res(); };
+      });
+      v.currentTime = 0;
+    }
+    const duration = isFinite(v.duration) && v.duration > 0 ? v.duration : 5;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth || 640;
+    canvas.height = v.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    const files: File[] = [];
+    for (let i = 0; i < count; i++) {
+      const t = (duration * (i + 0.5)) / count;
+      await new Promise<void>((res) => {
+        v.onseeked = () => { v.onseeked = null; res(); };
+        v.currentTime = Math.min(t, Math.max(0, duration - 0.05));
+      });
+      ctx?.drawImage(v, 0, 0, canvas.width, canvas.height);
+      const fileBlob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.82));
+      if (fileBlob) files.push(new File([fileBlob], `frame-${Date.now()}-${i}.jpg`, { type: "image/jpeg" }));
+    }
+    URL.revokeObjectURL(url);
+    return files;
+  };
+
+  const startVideoRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      setVideoStream(stream);
+      setTimeout(() => {
+        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream;
+      }, 50);
+
+      const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"]
+        .find((tp) => MediaRecorder.isTypeSupported?.(tp));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
+      recorder.onstop = async () => {
+        if (videoTimerRef.current) { window.clearInterval(videoTimerRef.current); videoTimerRef.current = null; }
+        stream.getTracks().forEach(t => t.stop());
+        setVideoStream(null);
+        setIsRecordingVideo(false);
+        setVideoElapsed(0);
+        const type = recorder.mimeType || "video/webm";
+        const blob = new Blob(chunks, { type });
+        if (blob.size < 2048) {
+          toast.error(language === "ar" ? "الفيديو فارغ — حاول مجدداً" : "Video empty — try again");
+          return;
+        }
+        setTranscribing(true);
+        try {
+          const frames = await extractFramesFromBlob(blob, 4);
+          if (frames.length === 0) throw new Error("no frames");
+          setAttachedFiles(prev => [...prev, ...frames]);
+
+          // Try to transcribe audio track for context (best-effort).
+          try {
+            const form = new FormData();
+            form.append("file", new File([blob], `video-${Date.now()}.webm`, { type }));
+            form.append("language", language);
+            const { data } = await supabase.functions.invoke("voice-transcribe", { body: form });
+            const text = (data as { text?: string })?.text?.trim();
+            if (text) setInput((prev) => (prev ? prev + " " : "") + text);
+          } catch (e) {
+            console.warn("video transcription skipped", e);
+          }
+
+          toast.success(language === "ar" ? "تم تسجيل الفيديو" : "Video captured");
+        } catch (e) {
+          console.error(e);
+          toast.error(language === "ar" ? "فشل معالجة الفيديو" : "Failed to process video");
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      recorder.start();
+      setVideoRecorder(recorder);
+      setIsRecordingVideo(true);
+      setVideoElapsed(0);
+      videoTimerRef.current = window.setInterval(() => {
+        setVideoElapsed((s) => {
+          const next = s + 1;
+          if (next >= VIDEO_MAX_SECONDS) recorder.state === "recording" && recorder.stop();
+          return next;
+        });
+      }, 1000);
+    } catch (err) {
+      toast.error(language === "ar" ? "تعذّر الوصول للكاميرا" : "Camera/mic access denied");
+    }
+  }, [language]);
+
+  const toggleVideo = useCallback(() => {
+    if (isRecordingVideo) stopVideoRecording();
+    else startVideoRecording();
+  }, [isRecordingVideo, startVideoRecording, stopVideoRecording]);
+
   const removeFile = (index: number) => {
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
   };
@@ -318,6 +450,22 @@ const MultimediaChat = ({
         </div>
       )}
 
+      {/* Video recording preview */}
+      {isRecordingVideo && (
+        <div className="relative mx-4 mb-2 rounded-lg overflow-hidden border border-emergency">
+          <video ref={videoPreviewRef} autoPlay playsInline muted className="w-full max-h-48 object-cover" />
+          <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-emergency text-white text-xs px-2 py-1 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            REC {videoElapsed}s / {VIDEO_MAX_SECONDS}s
+          </div>
+          <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+            <Button size="sm" variant="destructive" onClick={stopVideoRecording}>
+              <Square className="w-4 h-4 mr-1" /> {language === "ar" ? "إيقاف" : "Stop"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Attached files preview */}
       {attachedFiles.length > 0 && (
         <div className="flex gap-2 px-4 pb-2 flex-wrap">
@@ -412,6 +560,16 @@ const MultimediaChat = ({
               title="Camera"
             >
               <Camera className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleVideo}
+              disabled={transcribing}
+              className={`h-9 w-9 ${isRecordingVideo ? "text-emergency animate-pulse" : "text-muted-foreground"}`}
+              title={language === "ar" ? "تسجيل فيديو" : "Record video"}
+            >
+              {isRecordingVideo ? <Square className="w-4 h-4" /> : <Video className="w-4 h-4" />}
             </Button>
             <Button
               variant="ghost"
