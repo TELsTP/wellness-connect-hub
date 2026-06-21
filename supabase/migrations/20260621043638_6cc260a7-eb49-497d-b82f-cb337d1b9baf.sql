@@ -1,0 +1,2 @@
+ALTER TABLE public.chats DROP CONSTRAINT chats_portal_type_check;
+ALTER TABLE public.chats ADD CONSTRAINT chats_portal_type_check CHECK (portal_type = ANY (ARRAY['wellness'::text, 'assist'::text, 'bridge'::text]));
