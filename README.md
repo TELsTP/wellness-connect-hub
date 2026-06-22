@@ -100,3 +100,27 @@ Non-profit open-source — TELsTP Project
 ---
 
 *🏅 Powered by TELsTP AI Co-Accreditation Framework*
+
+## Live Multimedia Consultation (Phase 1)
+
+The `/call/:roomId` route hosts a WebRTC two-way audio + video room between a patient (WellnessAI side) and a clinician (AssistAI side). Signaling rides on Supabase Realtime (`call:<roomId>` channel). STUN servers are Google public; TURN is out of scope for v1.
+
+### AI Deputy (always-on)
+Every room is opened with `ai_deputy_active = true`. The patient's audio is sliced into 15s chunks, transcribed via the existing `voice-transcribe` edge function, and each patient turn triggers `call-deputy`. When a clinician is present the deputy operates as a silent scribe; when none has joined, the deputy speaks acknowledgements aloud via the browser TTS and gathers a structured history. At the end of the call, `encounter-finalize` writes a SOAP note to the `encounters` table for the doctor to review.
+
+### Anura / NuraLogix vitals — Phase 2
+The `vitals_readings` table is shaped for Anura DeepAffex output (HR, HRV, SpO₂, BP, stress, facial-age estimate, BMI estimate, hemoglobin estimate, skin tone ITA, wrinkle score, raw payload). `src/lib/vitals/anura.ts` is the adapter stub — it intentionally throws `NotConfiguredError` so no mock numbers ever reach the UI. To wire it in:
+
+1. Sign the commercial agreement with NuraLogix.
+2. Add `ANURA_LICENSE_KEY` via the secrets tool.
+3. Replace `captureVitals()` with the SDK call and map the response to `VitalsReading` (column names already match).
+4. Insert into `vitals_readings` with the active `room_id`.
+
+### Architect note — wearable backbone (Phase 2)
+Per Mohamed Ayoub: pave the way for wearable integration so vitals can be fetched in the background and rendered to both patient and practitioner, then folded into the initial session report by My-AssistAI. The `source` column already accepts `'wearable'` so a second adapter can sit alongside Anura without schema changes.
+
+### Out of scope for Phase 1
+- TURN server for strict-NAT mobile networks
+- Multi-party calls (resident + attending) via SFU
+- E2EE on the media channel
+- Server-side recording storage bucket (recordings download client-side for now)

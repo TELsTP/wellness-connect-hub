@@ -13,6 +13,7 @@ import LanguageToggle from "@/components/shared/LanguageToggle";
 import ArchitectHandshake from "@/components/shared/ArchitectHandshake";
 import HayatPersona from "@/components/shared/HayatPersona";
 import BridgePanel from "@/components/shared/BridgePanel";
+import LiveCallLauncher from "@/components/shared/LiveCallLauncher";
 import { parseEscalateMarker, detectRedFlag } from "@/lib/redFlags";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -212,6 +213,7 @@ const WellnessPortal = () => {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <LiveCallLauncher role="patient" sessionId={sessionId.current} language={language} accent="wellness" label={t("wellness.tab_chat") ? "Live consult" : "Live"} />
             <a href="tel:123">
               <Button variant="ghost" size="sm" className="text-emergency gap-1 text-xs">
                 <Phone className="w-3.5 h-3.5" />

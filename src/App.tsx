@@ -9,6 +9,7 @@ import WellnessPortal from "./pages/WellnessPortal";
 import AssistPortal from "./pages/AssistPortal";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
+import CallRoom from "./pages/CallRoom";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/wellness" element={<WellnessPortal />} />
             <Route path="/assist" element={<AssistPortal />} />
+            <Route path="/call/:roomId" element={<CallRoom />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

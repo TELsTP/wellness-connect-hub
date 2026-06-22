@@ -1261,6 +1261,47 @@ export type Database = {
         }
         Relationships: []
       }
+      encounters: {
+        Row: {
+          created_at: string
+          id: string
+          recording_path: string | null
+          room_id: string
+          soap_note: string | null
+          summary_sent_at: string | null
+          transcript: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recording_path?: string | null
+          room_id: string
+          soap_note?: string | null
+          summary_sent_at?: string | null
+          transcript?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recording_path?: string | null
+          room_id?: string
+          soap_note?: string | null
+          summary_sent_at?: string | null
+          transcript?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "encounters_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           corrective_action: string | null
@@ -2375,6 +2416,48 @@ export type Database = {
           },
         ]
       }
+      rooms: {
+        Row: {
+          ai_deputy_active: boolean
+          clinician_session: string | null
+          created_at: string
+          created_by_session: string
+          ended_at: string | null
+          id: string
+          language: string | null
+          patient_session: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_deputy_active?: boolean
+          clinician_session?: string | null
+          created_at?: string
+          created_by_session: string
+          ended_at?: string | null
+          id: string
+          language?: string | null
+          patient_session?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_deputy_active?: boolean
+          clinician_session?: string | null
+          created_at?: string
+          created_by_session?: string
+          ended_at?: string | null
+          id?: string
+          language?: string | null
+          patient_session?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       short_term_memory: {
         Row: {
           access_count: number | null
@@ -2619,6 +2702,83 @@ export type Database = {
           memory_data?: Json
         }
         Relationships: []
+      }
+      vitals_readings: {
+        Row: {
+          bmi_estimate: number | null
+          bp_diastolic: number | null
+          bp_systolic: number | null
+          captured_at: string
+          confidence: number | null
+          created_at: string
+          facial_age_estimate: number | null
+          heart_rate_bpm: number | null
+          hemoglobin_estimate: number | null
+          hrv_sdnn_ms: number | null
+          id: string
+          raw_payload: Json | null
+          resp_rate_bpm: number | null
+          room_id: string | null
+          session_id: string
+          skin_tone_ita: number | null
+          source: string
+          spo2_pct: number | null
+          stress_index: number | null
+          wrinkle_score: number | null
+        }
+        Insert: {
+          bmi_estimate?: number | null
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          captured_at?: string
+          confidence?: number | null
+          created_at?: string
+          facial_age_estimate?: number | null
+          heart_rate_bpm?: number | null
+          hemoglobin_estimate?: number | null
+          hrv_sdnn_ms?: number | null
+          id?: string
+          raw_payload?: Json | null
+          resp_rate_bpm?: number | null
+          room_id?: string | null
+          session_id: string
+          skin_tone_ita?: number | null
+          source?: string
+          spo2_pct?: number | null
+          stress_index?: number | null
+          wrinkle_score?: number | null
+        }
+        Update: {
+          bmi_estimate?: number | null
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          captured_at?: string
+          confidence?: number | null
+          created_at?: string
+          facial_age_estimate?: number | null
+          heart_rate_bpm?: number | null
+          hemoglobin_estimate?: number | null
+          hrv_sdnn_ms?: number | null
+          id?: string
+          raw_payload?: Json | null
+          resp_rate_bpm?: number | null
+          room_id?: string | null
+          session_id?: string
+          skin_tone_ita?: number | null
+          source?: string
+          spo2_pct?: number | null
+          stress_index?: number | null
+          wrinkle_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vitals_readings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_dispatch_history: {
         Row: {
