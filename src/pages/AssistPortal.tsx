@@ -14,6 +14,7 @@ import LanguageToggle from "@/components/shared/LanguageToggle";
 import ArchitectHandshake from "@/components/shared/ArchitectHandshake";
 import HayatPersona from "@/components/shared/HayatPersona";
 import BridgePanel from "@/components/shared/BridgePanel";
+import LiveCallLauncher from "@/components/shared/LiveCallLauncher";
 import { parseEscalateMarker } from "@/lib/redFlags";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -209,6 +210,7 @@ const AssistPortal = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <LiveCallLauncher role="clinician" sessionId={sessionId.current} language={language} accent="clinical" label="Live room" />
             <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
               <span>{t("assist.moh_toggle")}</span>
               <Switch checked={mohGuidelines} onCheckedChange={setMohGuidelines} />
