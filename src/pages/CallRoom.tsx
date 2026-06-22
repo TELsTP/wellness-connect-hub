@@ -145,8 +145,10 @@ const CallRoom = () => {
         await signaling.join();
 
         // Mark this side as joined in DB
-        const patch: Record<string, unknown> = { status: "active", started_at: new Date().toISOString() };
-        patch[role === "patient" ? "patient_session" : "clinician_session"] = `session-${role}-${Date.now()}`;
+        const sessionTag = `session-${role}-${Date.now()}`;
+        const patch = role === "patient"
+          ? { status: "active", started_at: new Date().toISOString(), patient_session: sessionTag }
+          : { status: "active", started_at: new Date().toISOString(), clinician_session: sessionTag };
         await supabase.from("rooms").update(patch).eq("id", roomId);
 
         // Create encounter row (patient side owns it to avoid duplicates)
