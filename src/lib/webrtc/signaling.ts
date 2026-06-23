@@ -74,7 +74,29 @@ export class SignalingChannel {
   }
 }
 
-export const ICE_SERVERS: RTCIceServer[] = [
+/**
+ * ICE servers. STUN is enough for ~80% of consumer NATs; for the strict
+ * CG-NAT setups common on Egyptian mobile carriers we also need TURN.
+ *
+ * Self-hosted coturn is the planned route (see README "TURN / coturn"). When
+ * those credentials are provisioned, set the following Vite env vars at
+ * build time and the relay servers will be appended automatically — no code
+ * change required:
+ *
+ *   VITE_TURN_URL       e.g. turn:turn.telstp.org:3478?transport=udp
+ *   VITE_TURN_USERNAME  short-lived credential username (HMAC pattern)
+ *   VITE_TURN_PASSWORD  short-lived credential password
+ *
+ * For production these should be minted per-session by an edge function
+ * (TURN REST API / time-limited credentials) rather than baked into the
+ * client bundle. The env-var path is a stopgap for the coturn pilot.
+ */
+const env = (import.meta as unknown as { env: Record<string, string | undefined> }).env;
+const baseStun: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
 ];
+const turn = env.VITE_TURN_URL
+  ? [{ urls: env.VITE_TURN_URL, username: env.VITE_TURN_USERNAME, credential: env.VITE_TURN_PASSWORD }]
+  : [];
+export const ICE_SERVERS: RTCIceServer[] = [...baseStun, ...turn];
