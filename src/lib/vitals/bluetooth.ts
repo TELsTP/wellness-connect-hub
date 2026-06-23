@@ -29,6 +29,26 @@ export interface LiveVitalsSample {
 
 export type VitalsListener = (s: LiveVitalsSample) => void;
 
+// Minimal Web Bluetooth typings — the official lib.dom.d.ts in this TS build
+// does not ship them. We only declare what we touch.
+type BluetoothRemoteGATTCharacteristic = EventTarget & {
+  value: DataView | null;
+  startNotifications(): Promise<unknown>;
+  stopNotifications(): Promise<unknown>;
+};
+type BluetoothRemoteGATTService = {
+  getCharacteristic(name: string): Promise<BluetoothRemoteGATTCharacteristic>;
+};
+type BluetoothRemoteGATTServer = {
+  connect(): Promise<BluetoothRemoteGATTServer>;
+  disconnect(): void;
+  getPrimaryService(name: string): Promise<BluetoothRemoteGATTService>;
+};
+type BluetoothDevice = EventTarget & {
+  name?: string;
+  gatt?: BluetoothRemoteGATTServer;
+};
+
 const HR_SERVICE = "heart_rate";
 const HR_MEASUREMENT = "heart_rate_measurement";
 
