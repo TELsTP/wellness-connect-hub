@@ -33,6 +33,74 @@ src/
 
 ## 🚀 Getting Started
 
+## 📊 Live vitals — Phase 2 status
+
+Real, no-mock vitals are wired in `src/lib/vitals/bluetooth.ts` and surfaced in
+`VitalsPanel` inside the live call. Two sources are live today:
+
+1. **BLE heart-rate strap** — any standards-compliant sensor that exposes the
+   Bluetooth SIG Heart Rate Service (`0x180D`) works without per-vendor code:
+   Polar H10/H9, Wahoo Tickr, Garmin HRM-Dual, Coros, Suunto, etc. RR-interval
+   notifications are aggregated into an SDNN HRV value over a rolling 60-second
+   window and written to `vitals_readings` every 5 s (broadcast every beat so
+   the clinician sees the live trace).
+2. **Self-reported cuff / oximeter** — explicit `source = 'self-report'` rows
+   so they are never confused with sensor data downstream.
+
+Browser support: Web Bluetooth ships in Chromium-based browsers on Android and
+desktop. iOS Safari is not supported; iPhone users need the (planned)
+Capacitor wrapper with `@capacitor-community/bluetooth-le`, or a BLE bridge
+app such as Bluefy. The panel detects support and renders a clear notice when
+the API is unavailable — it never falls back to mock data.
+
+### Next slots (kept open in `vitals_readings`)
+- **Pulse Oximeter Service (`0x1822`)** → `spo2_pct`
+- **Blood Pressure Service (`0x1810`)** → `bp_systolic` / `bp_diastolic`
+- **Health Thermometer (`0x1809`)** → temperature
+- **Anura / NuraLogix DeepAffex camera vitals** — adapter scaffold in
+  `src/lib/vitals/anura.ts`. Throws `NotConfiguredError` until the license
+  key arrives; UI hides the panel rather than fake numbers.
+- **Apple Health / Google Fit / Fitbit / Garmin Connect** — best handled
+  inside the Capacitor mobile wrapper using each platform's HealthKit /
+  Health Connect bridge. Tracked for the native build.
+
+## 🛰️ TURN / coturn (NAT traversal)
+
+The signaling layer reads three optional env vars at build time:
+
+```bash
+VITE_TURN_URL=turn:turn.telstp.org:3478?transport=udp
+VITE_TURN_USERNAME=...   # time-limited HMAC username
+VITE_TURN_PASSWORD=...   # time-limited HMAC password
+```
+
+When unset the call uses Google STUN only (works on most consumer NATs, fails
+on strict CG-NAT mobile carriers). Recommended self-hosted setup:
+
+```bash
+# Ubuntu 22.04 reference
+sudo apt install coturn
+# /etc/turnserver.conf — minimal hardened config:
+listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+static-auth-secret=<rotate-monthly>
+realm=telstp.org
+total-quota=200
+stale-nonce=600
+cert=/etc/letsencrypt/live/turn.telstp.org/fullchain.pem
+pkey=/etc/letsencrypt/live/turn.telstp.org/privkey.pem
+no-multicast-peers
+no-cli
+```
+
+For production, mint per-session ephemeral credentials from an edge function
+(TURN REST API time-limited credential pattern) instead of baking the secret
+into the client.
+
+## 🚀 Getting Started
+
 ### Prerequisites
 - Node.js 18+ or Bun
 - npm, yarn, or bun package manager
