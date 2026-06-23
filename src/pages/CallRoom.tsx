@@ -3,13 +3,13 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Bot, Activity, Loader2, FileText, Copy } from "lucide-react";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Bot, Loader2, FileText, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { SignalingChannel, ICE_SERVERS, type SignalRole } from "@/lib/webrtc/signaling";
 import { speak, stopSpeaking } from "@/lib/speak";
-import { VITALS_INTEGRATION_STATUS } from "@/lib/vitals/anura";
+import { VitalsPanel } from "@/components/shared/VitalsPanel";
 
 type TranscriptTurn = { role: "patient" | "clinician" | "ai"; text: string; ts: string };
 
@@ -42,6 +42,7 @@ const CallRoom = () => {
   const [soapNote, setSoapNote] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState(false);
   const [callStarted] = useState(() => new Date());
+  const sessionIdRef = useRef<string>(`session-${role}-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Date.now()}`);
 
   const appendTurn = useCallback((turn: TranscriptTurn) => {
     transcriptRef.current = [...transcriptRef.current, turn];
@@ -385,15 +386,8 @@ const CallRoom = () => {
             </Button>
           </div>
 
-          <Card className="p-3 text-xs space-y-1">
-            <div className="flex items-center gap-2 font-medium">
-              <Activity className="w-3.5 h-3.5" /> Camera-based vitals
-            </div>
-            <p className="text-muted-foreground">
-              {VITALS_INTEGRATION_STATUS.provider} integration is pending — no measurements
-              will be shown until the SDK is wired. Architect note: wearable fallback queued
-              for the next phase.
-            </p>
+          <Card className="p-3">
+            <VitalsPanel roomId={roomId} sessionId={sessionIdRef.current} readOnly={role === "clinician"} />
           </Card>
         </div>
 
