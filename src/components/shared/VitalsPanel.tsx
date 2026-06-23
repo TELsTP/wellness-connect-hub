@@ -71,7 +71,7 @@ export const VitalsPanel = ({ roomId, sessionId, readOnly }: Props) => {
       bp_diastolic: s.bp_diastolic ?? null,
       resp_rate_bpm: s.resp_rate_bpm ?? null,
       confidence: s.confidence ?? null,
-      raw_payload: (s.raw_payload as object) ?? null,
+      raw_payload: (s.raw_payload as never) ?? null,
     });
     if (error) console.warn("vitals insert failed", error);
     broadcastRef.current?.send({ type: "broadcast", event: "sample", payload: s });
