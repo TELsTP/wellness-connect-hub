@@ -120,7 +120,9 @@ const CallRoom = () => {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
         localStreamRef.current = stream;
+        setLocalStream(stream);
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
 
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
         pcRef.current = pc;
