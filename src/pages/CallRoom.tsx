@@ -3,13 +3,21 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Bot, Loader2, FileText, Copy } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Bot, Loader2, FileText, Copy, Stethoscope, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { SignalingChannel, ICE_SERVERS, type SignalRole } from "@/lib/webrtc/signaling";
 import { speak, stopSpeaking } from "@/lib/speak";
 import { VitalsPanel } from "@/components/shared/VitalsPanel";
+import { VitalsCharts } from "@/components/shared/VitalsCharts";
+import { SkinScanPanel } from "@/components/shared/SkinScanPanel";
+import type { LiveVitalsSample } from "@/lib/vitals/bluetooth";
+import type { SkinAssessment } from "@/lib/vitals/skin";
+import { summarizeVitals, vitalsBriefing, vitalsToCsv } from "@/lib/vitals/summary";
+import { downloadTimelinePdf } from "@/lib/reports/timelinePdf";
+import { uploadArtifact, listArtifacts, type StoredArtifact } from "@/lib/artifacts";
 
 type TranscriptTurn = { role: "patient" | "clinician" | "ai"; text: string; ts: string };
 
@@ -42,7 +50,23 @@ const CallRoom = () => {
   const [soapNote, setSoapNote] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState(false);
   const [callStarted] = useState(() => new Date());
+  const [samples, setSamples] = useState<LiveVitalsSample[]>([]);
+  const [skin, setSkin] = useState<SkinAssessment | null>(null);
+  const [symptoms, setSymptoms] = useState("");
+  const [triage, setTriage] = useState<string | null>(null);
+  const [triaging, setTriaging] = useState(false);
+  const [artifacts, setArtifacts] = useState<StoredArtifact[]>([]);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const sessionIdRef = useRef<string>(`session-${role}-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Date.now()}`);
+
+  const samplesRef = useRef<LiveVitalsSample[]>([]);
+  const skinRef = useRef<SkinAssessment | null>(null);
+  const triageRef = useRef<string | null>(null);
+  const addSample = useCallback((s: LiveVitalsSample) => {
+    samplesRef.current = [...samplesRef.current.slice(-299), s];
+    setSamples(samplesRef.current);
+  }, []);
+
 
   const appendTurn = useCallback((turn: TranscriptTurn) => {
     transcriptRef.current = [...transcriptRef.current, turn];
@@ -96,7 +120,9 @@ const CallRoom = () => {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
         localStreamRef.current = stream;
+        setLocalStream(stream);
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
 
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
         pcRef.current = pc;
@@ -196,9 +222,33 @@ const CallRoom = () => {
 
         // Subscribe to encounter updates so clinician sees transcript live
         if (role === "clinician") subscribeToEncounter();
+
+        // Load any vitals already recorded for this room so charts start populated
+        const { data: past } = await supabase
+          .from("vitals_readings")
+          .select("*")
+          .eq("room_id", roomId)
+          .order("captured_at", { ascending: true })
+          .limit(300);
+        if (past?.length) {
+          samplesRef.current = past.map((r) => ({
+            source: r.source as LiveVitalsSample["source"],
+            capturedAt: r.captured_at,
+            heart_rate_bpm: r.heart_rate_bpm ?? undefined,
+            hrv_sdnn_ms: r.hrv_sdnn_ms ?? undefined,
+            spo2_pct: r.spo2_pct ?? undefined,
+            bp_systolic: r.bp_systolic ?? undefined,
+            bp_diastolic: r.bp_diastolic ?? undefined,
+            resp_rate_bpm: r.resp_rate_bpm ?? undefined,
+            confidence: r.confidence ?? undefined,
+          }));
+          setSamples(samplesRef.current);
+        }
+        setArtifacts(await listArtifacts(roomId));
       } catch (e) {
         console.error("init failed", e);
         toast.error("Camera / microphone permission required");
+
       }
     };
 

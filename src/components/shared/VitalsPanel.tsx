@@ -13,6 +13,8 @@ interface Props {
   sessionId: string;
   /** When set, panel is read-only and just renders incoming samples (clinician view). */
   readOnly?: boolean;
+  /** Bubbles every sample up so the call page can chart / report on it. */
+  onSample?: (s: LiveVitalsSample) => void;
 }
 
 /**
@@ -22,7 +24,7 @@ interface Props {
  * by session) AND broadcast on the call channel so the clinician sees it
  * live without polling.
  */
-export const VitalsPanel = ({ roomId, sessionId, readOnly }: Props) => {
+export const VitalsPanel = ({ roomId, sessionId, readOnly, onSample }: Props) => {
   const monitorRef = useRef<BluetoothHeartRateMonitor | null>(null);
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -31,10 +33,15 @@ export const VitalsPanel = ({ roomId, sessionId, readOnly }: Props) => {
   const [manual, setManual] = useState({ sys: "", dia: "", temp: "", spo2: "" });
   const [saving, setSaving] = useState(false);
 
+  const onSampleRef = useRef(onSample);
+  onSampleRef.current = onSample;
+
   const ingest = (s: LiveVitalsSample) => {
     setLatest(s);
     setHistory((h) => [...h.slice(-59), s]);
+    onSampleRef.current?.(s);
   };
+
 
   // Clinician (read-only) subscribes to broadcast samples from the patient
   useEffect(() => {
