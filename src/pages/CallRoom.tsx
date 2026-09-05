@@ -222,9 +222,33 @@ const CallRoom = () => {
 
         // Subscribe to encounter updates so clinician sees transcript live
         if (role === "clinician") subscribeToEncounter();
+
+        // Load any vitals already recorded for this room so charts start populated
+        const { data: past } = await supabase
+          .from("vitals_readings")
+          .select("*")
+          .eq("room_id", roomId)
+          .order("captured_at", { ascending: true })
+          .limit(300);
+        if (past?.length) {
+          samplesRef.current = past.map((r) => ({
+            source: r.source as LiveVitalsSample["source"],
+            capturedAt: r.captured_at,
+            heart_rate_bpm: r.heart_rate_bpm ?? undefined,
+            hrv_sdnn_ms: r.hrv_sdnn_ms ?? undefined,
+            spo2_pct: r.spo2_pct ?? undefined,
+            bp_systolic: r.bp_systolic ?? undefined,
+            bp_diastolic: r.bp_diastolic ?? undefined,
+            resp_rate_bpm: r.resp_rate_bpm ?? undefined,
+            confidence: r.confidence ?? undefined,
+          }));
+          setSamples(samplesRef.current);
+        }
+        setArtifacts(await listArtifacts(roomId));
       } catch (e) {
         console.error("init failed", e);
         toast.error("Camera / microphone permission required");
+
       }
     };
 
